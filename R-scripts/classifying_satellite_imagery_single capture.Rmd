@@ -1,0 +1,362 @@
+---
+title: "Classifying Satellite Data in R"
+author: "Oliver Atwood, adapted from work by Sydney Goldstein, Jenna Epstein"
+date: "09/06/2023"
+output: html_document
+---
+
+## Setup
+```{r load libraries}
+rm(list=ls())
+
+# Set the working directory
+setwd("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Exports")
+```
+
+```{r load libraries, message = FALSE}
+library(raster)
+library(tidyverse)
+library(sf)
+library(rpart)
+library(rasterVis)
+library(mapedit)
+library(mapview)
+library(caret)
+library(forcats)
+library(rpart.plot)
+library(patchwork)
+library(magrittr)
+library(rgdal)
+library(dplyr)
+
+library(leaflet)
+library(RColorBrewer)
+
+```
+
+```{r set parameters}
+# Set coordinate system using EPSG code
+coordinate_system <- CRS("+init=epsg:3832")
+
+# Desired uniform resolution
+new_res <- c(30, 30)
+```
+
+```{r load classified landcover geoTIFF}
+# Define the path to your GeoTIFF file
+geotiff_path <- "/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/ESA_WorldCover_10m_2020_Clip.tif"
+
+# Load the GeoTIFF file into R
+WorldCover_2020_Clip <- raster(geotiff_path)
+
+# Re-project the raster
+WorldCover_2020_Clip <- projectRaster(WorldCover_2020_Clip, crs = coordinate_system, res = new_res, method = "ngb")
+
+```
+
+```{r load bands data}
+band1 <- raster("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Landsat8_2020/LC08_L2SP_087067_20201126_20210316_02_T1_SR_B1.TIF")
+band2 <- raster("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Landsat8_2020/LC08_L2SP_087067_20201126_20210316_02_T1_SR_B2.TIF")
+band3 <- raster("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Landsat8_2020/LC08_L2SP_087067_20201126_20210316_02_T1_SR_B3.TIF")
+band4 <- raster("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Landsat8_2020/LC08_L2SP_087067_20201126_20210316_02_T1_SR_B4.TIF")
+band5 <- raster("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Landsat8_2020/LC08_L2SP_087067_20201126_20210316_02_T1_SR_B5.TIF")
+band6 <- raster("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Landsat8_2020/LC08_L2SP_087067_20201126_20210316_02_T1_SR_B6.TIF")
+band7 <- raster("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Landsat8_2020/LC08_L2SP_087067_20201126_20210316_02_T1_SR_B7.TIF")
+
+```
+
+```{r}
+Landsat_2020 <- stack(band1, band2, band3, band4, band5, band6, band7) 
+               # band8, band9, band10, band11)
+
+# Clip the landsat raster stack based on the extent of LC raster
+# Extract the coordinate system
+clip_crs <- crs(Landsat_2020)
+
+# Re-project the raster for clipping
+WorldCover_2020_scratch <- projectRaster(WorldCover_2020_Clip, crs = clip_crs, res = new_res, method = "ngb")
+
+# Create an extent object from the layer
+clip_bounds <- extent(WorldCover_2020_scratch)
+
+# Clip raster
+Landsat_2020 <- crop(Landsat_2020, clip_bounds)
+
+# Call out each band
+band1 <- Landsat_2020[[1]]
+band2 <- Landsat_2020[[2]]
+band3 <- Landsat_2020[[3]]
+band4 <- Landsat_2020[[4]]
+band5 <- Landsat_2020[[5]]
+band6 <- Landsat_2020[[6]]
+band7 <- Landsat_2020[[7]]
+
+```
+
+```{r resample land cover dataset}
+# Resample land cover to match the resolution of landsat rasters
+# WorldCover_2020_Clip <- resample(WorldCover_2020_Clip, res = new_res, method = "ngb")
+# res(WorldCover_2020_Clip)
+
+```
+
+```{r}
+# Plot band7 using base R plot function.
+plot(band7)
+```
+# Supervised Classification
+```{r}
+# Get all raster values as a vector
+all_values <- getValues(WorldCover_2020_Clip)
+
+# Get unique values
+unique_values <- unique(all_values)
+
+# Print or otherwise use the unique values
+print(unique_values)
+
+```
+
+Land Cover Sampling
+```{r}
+sampling_pct <- 0.75
+```
+
+### Urban
+```{r, warning=FALSE}
+# Create a new raster with only the cells that are equal to 50
+LC_2020_Urban <- calc(WorldCover_2020_Clip, function(x) {
+  ifelse(x == 50, 1, NA)})
+
+# Convert that raster to points
+pts_urban <- rasterToPoints(LC_2020_Urban)
+
+# Convert to data.frame
+pts_urban <- as.data.frame(pts_urban)
+
+# Assign names to the data.frame columns
+names(pts_urban) <- c("x", "y", "value")
+
+# Convert to sf object
+pts_urban <- st_as_sf(pts_urban, coords = c("x", "y"), crs = coordinate_system)
+
+# Randomly select a subset of the points
+n_subset <- floor(sampling_pct * nrow(pts_urban))
+pts_urban <- pts_urban[sample(nrow(pts_urban), n_subset), ]
+
+# Labeling & formatting
+pts_urban <- pts_urban %>%
+  mutate(id = value,
+         class = 'urban')
+
+pts_urban <-  dplyr::select(pts_urban, -value)
+
+```
+
+### Forest
+```{r, warning=FALSE}
+# Create a new raster with only the cells that are equal to 50
+LC_2020_Forest <- calc(WorldCover_2020_Clip, function(x) {
+  ifelse(x == 10, 2, NA)})
+
+# Convert that raster to points
+pts_forest <- rasterToPoints(LC_2020_Forest)
+
+# Convert to data.frame
+pts_forest <- as.data.frame(pts_forest)
+
+# Assign names to the data.frame columns
+names(pts_forest) <- c("x", "y", "value")
+
+# Convert to sf object
+pts_forest <- st_as_sf(pts_forest, coords = c("x", "y"), crs = coordinate_system)
+
+# Randomly select a subset of the points
+n_subset <- floor(sampling_pct * nrow(pts_forest))
+pts_forest <- pts_forest[sample(nrow(pts_forest), n_subset), ]
+
+# Labeling & formatting
+pts_forest <- pts_forest %>%
+  mutate(id = value,
+         class = 'forest')
+
+pts_forest <-  dplyr::select(pts_forest, -value)
+
+```
+
+### Water
+```{r, warning=FALSE}
+# Create a new raster with only the non-urban, non-forest, and non-water cells
+LC_2020_Water <- calc(WorldCover_2020_Clip, function(x) {
+  ifelse(x == 80, 3, NA)})
+
+# Convert that raster to points
+pts_water <- rasterToPoints(LC_2020_Water)
+
+# Convert to data.frame
+pts_water <- as.data.frame(pts_water)
+
+# Assign names to the data.frame columns
+names(pts_water) <- c("x", "y", "value")
+
+# Convert to sf object
+pts_water <- st_as_sf(pts_water, coords = c("x", "y"), crs = coordinate_system)
+
+# Randomly select a subset of the points
+n_subset <- floor(sampling_pct * nrow(pts_water))
+pts_water <- pts_water[sample(nrow(pts_water), n_subset), ]
+
+# Labeling & formatting
+pts_water <- pts_water %>%
+  mutate(id = value,
+         class = 'water')
+
+pts_water <-  dplyr::select(pts_water, -value)
+```
+
+### Other
+```{r, warning=FALSE}
+# Create a new raster with only the non-urban, non-forest, and non-water cells
+LC_2020_Other <- calc(WorldCover_2020_Clip, function(x) {
+  ifelse(x != 10 & x != 50 & x != 80, 4, NA)})
+
+# Convert that raster to points
+pts_other <- rasterToPoints(LC_2020_Other)
+
+# Convert to data.frame
+pts_other <- as.data.frame(pts_other)
+
+# Assign names to the data.frame columns
+names(pts_other) <- c("x", "y", "value")
+
+# Convert to sf object
+pts_other <- st_as_sf(pts_other, coords = c("x", "y"), crs = coordinate_system)
+
+# Randomly select a subset of the points
+n_subset <- floor(sampling_pct * nrow(pts_other))
+pts_other <- pts_other[sample(nrow(pts_other), n_subset), ]
+
+# Labeling & formatting
+pts_other <- pts_other %>%
+  mutate(id = value,
+         class = 'other')
+
+pts_other <-  dplyr::select(pts_other, -value)
+```
+
+```{r}
+training_points <- rbind(pts_urban, pts_forest, pts_water, pts_other)
+```
+
+
+```{r}
+A <- ggplot() +
+  geom_sf(data = training_points, aes(color = class), size = 0.1) +
+  scale_color_manual(values = c('darkgreen', 'burlywood', 'red', 'blue')) +
+  labs(title = "Classification points by land use") +
+  theme(panel.background = element_blank(), axis.ticks = element_blank(), axis.text = element_blank())
+
+A
+```
+
+### Extracting spectral values from the raster
+
+```{r}
+training_points <- as(training_points, 'Spatial')
+
+df <- raster::extract(Landsat_2020, training_points)
+
+summary(df)
+```
+
+### Exploratory analysis: Plotting the spectral profile
+
+```{r}
+profiles <- df %>%
+  as.data.frame() %>%
+  cbind(., training_points$id) %>%
+  rename(id = "training_points$id") %>%
+  na.omit() %>%
+  group_by(id) %>%
+  summarise(band1 = mean(LC08_L2SP_087067_20201126_20210316_02_T1_SR_B1),
+            band2 = mean(LC08_L2SP_087067_20201126_20210316_02_T1_SR_B2),
+            band3 = mean(LC08_L2SP_087067_20201126_20210316_02_T1_SR_B3),
+            band4 = mean(LC08_L2SP_087067_20201126_20210316_02_T1_SR_B4),
+            band5 = mean(LC08_L2SP_087067_20201126_20210316_02_T1_SR_B5),
+            band6 = mean(LC08_L2SP_087067_20201126_20210316_02_T1_SR_B6),
+            band7 = mean(LC08_L2SP_087067_20201126_20210316_02_T1_SR_B7)) %>%
+  mutate(id = case_when(id == 1 ~ "urban",
+                        id == 2 ~ "forest",
+                        id == 3 ~ "water",
+                        id == 4 ~ "other")) %>%
+  as.data.frame()
+
+summary(profiles)
+```
+
+### Classifying the imagery
+```{r}
+# Create df
+df <- data.frame(class = training_points$class, df)
+
+# Build model
+model.class <- rpart(as.factor(class) ~ ., data = df, method = 'class')
+
+# Plot model
+# rpart.plot(model.class, box.palette = 0, main = "Classification Tree")
+
+# Predict
+pr <- predict(Landsat_2020, model.class, type ='class', progress = 'text') %>% 
+  ratify()
+
+levels(pr) <- levels(pr)[[1]] %>%
+  mutate(legend = c("forest","other","urban", "water"))
+```
+
+```{r}
+levelplot(pr, maxpixels = 1e6,
+          col.regions = c('darkgreen', 'burlywood', 'red', 'blue'),
+          scales=list(draw=FALSE),
+          main = "Supervised Classification of Imagery")
+
+# WorldCover_2020_Clip_df <- as.data.frame(WorldCover_2020_Clip, xy = TRUE)
+# WorldCover_2020_Clip_df$ESA_WorldCover_10m_2020_Clip <- ifelse(WorldCover_2020_Clip_df$ESA_WorldCover_10m_2020_Clip > 30, NA, WorldCover_2020_Clip_df$ESA_WorldCover_10m_2020_Clip)
+# WorldCover_2020_Clip_df$ESA_WorldCover_10m_2020_Clip <- as.factor(WorldCover_2020_Clip_df$ESA_WorldCover_10m_2020_Clip)
+# 
+# ggplot(WorldCover_2020_Clip_df, aes(x = x, y = y, fill = ESA_WorldCover_10m_2020_Clip)) +
+#   geom_raster() +
+#   scale_fill_manual(values = c('darkgreen', 'burlywood', 'red', 'black', 'black', 'black', 'black', 'black')) +
+#   theme_void() +
+#   labs(title = "Original Land Cover Raster")
+
+```
+```{r}
+# Convert the raster to a data frame
+WorldCover_2020_Plot <- as.data.frame(WorldCover_2020_Clip, xy = TRUE)
+WorldCover_2020_Plot$LandCover <- as.factor(WorldCover_2020_Plot$ESA_WorldCover_10m_2020_Clip)
+
+# Plot using ggplot2
+ggplot(data = WorldCover_2020_Plot, aes(x = x, y = y)) +
+  geom_raster(aes(fill = LandCover)) +
+  scale_fill_manual(values = c('darkgreen', 'burlywood', 'burlywood', 'burlywood', 'red', 'burlywood', 'blue', 'burlywood')) +
+  theme_minimal() +
+  ggtitle("Supervised Classification of Imagery")
+
+```
+
+```{r}
+pr <- projectRaster(pr, crs = coordinate_system, method="ngb")
+training_points <-spTransform(training_points, coordinate_system, method="ngb")
+
+test <- raster::extract(pr, training_points) %>% 
+  as.data.frame() %>% 
+  rename(id = ".")
+
+testProbs <- data.frame(
+  obs = as.factor(training_points$id),
+  pred = as.factor(test$id)) %>% 
+  mutate(correct = ifelse(obs == pred, 1, 0))
+
+confMatrix <- confusionMatrix(testProbs$obs, testProbs$pred)
+confMatrix
+```

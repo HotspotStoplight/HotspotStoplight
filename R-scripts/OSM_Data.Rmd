@@ -1,0 +1,136 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-09-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+# install.packages("osmdata")
+library(osmdata)
+library(sf)
+library(ggplot2)
+library(raster)
+library(dplyr)
+
+# Capture the start time
+start_time <- Sys.time()
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+# Coordinates
+# coords <- c(159, -10.40, 161.5, -8.75)
+coords <- c(159.87837324022547, -9.506012864979633, 160.11732587694422, -9.365122938868943)
+coordinate_system <- 32756
+resolution <- 30
+
+# Create a rectangle (polygon) from the coordinates
+rectangle <- st_polygon(list(matrix(c(coords[1], coords[2],
+                                     coords[1], coords[4],
+                                     coords[3], coords[4],
+                                     coords[3], coords[2],
+                                     coords[1], coords[2]), 
+                                     ncol=2, byrow=TRUE)))
+
+# Create an sf object and set its CRS to EPSG:4326 (WGS 84)
+rectangle_sf <- st_sf(geometry = st_sfc(rectangle, crs = 4326))
+
+bbox <- st_bbox(rectangle_sf)
+
+# Reproject the rectangle to EPSG:32756 (UTM Zone 56S)
+rectangle_sf_utm <- st_transform(rectangle_sf, coordinate_system)
+
+# Get the bounding box from rectangle_sf_utm
+bbox_utm <- st_bbox(rectangle_sf_utm)
+
+# Query Roads Data from OSM
+roads_data_1 <- opq(bbox) %>%
+  add_osm_feature(key = "highway", value = "secondary") %>%
+  osmdata_sf()
+
+roads_data_2 <- opq(bbox) %>%
+  add_osm_feature(key = "highway", value = "tertiary") %>%
+  osmdata_sf()
+
+roads_data_3 <- opq(bbox) %>%
+  add_osm_feature(key = "highway", value = "residential") %>%
+  osmdata_sf()
+
+# Convert the roads data to a simple feature object
+roads_1 <- roads_data_1$osm_lines
+roads_utm_1 <- st_transform(roads_1, coordinate_system)
+roads_utm_1 <- st_simplify(roads_utm_1, dTolerance = resolution)
+
+roads_2 <- roads_data_2$osm_lines
+roads_utm_2 <- st_transform(roads_2, coordinate_system)
+roads_utm_2 <- st_simplify(roads_utm_2, dTolerance = resolution)
+
+roads_3 <- roads_data_3$osm_lines
+roads_utm_3 <- st_transform(roads_3, coordinate_system)
+roads_utm_3 <- st_simplify(roads_utm_3, dTolerance = resolution)
+
+# Combine roads
+all_roads <- bind_rows(roads_utm_1, roads_utm_2, roads_utm_3)
+
+# Plot using ggplot2
+ggplot(data = all_roads) +
+  geom_sf() +
+  theme_minimal() +
+  labs(title = "Imported Roads")
+```
+
+```{r, fig.width=max}
+bbox_utm_extent <- extent(c(bbox_utm["xmin"], bbox_utm["xmax"], bbox_utm["ymin"], bbox_utm["ymax"]))
+
+# Empty raster
+r <- raster(bbox_utm_extent, res = resolution, crs = st_crs(coordinate_system))
+
+# Rasterize road count
+roads_raster_utm <- rasterize(all_roads, r, field = 1, fun = "count")
+
+# Clone the roads_raster_utm to create binary_roads_raster
+binary_roads_raster <- roads_raster_utm
+
+# Replace all non-zero values with 1
+binary_roads_raster[binary_roads_raster > 0] <- 1
+
+# Replace all zero values with NA
+binary_roads_raster[binary_roads_raster == 0] <- NA
+
+# Compute road proximity
+proximity_raster <- distance(binary_roads_raster)
+
+# Plot the rasters
+plot(roads_raster_utm, main = "Roads Rasterized (Count)")
+plot(binary_roads_raster, main = "Roads Rasterized (Binary)")
+plot(proximity_raster, main = "Proximity to Roads")
+
+# writeRaster(roads_raster_utm, filename = "data/roads_count.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(binary_roads_raster, filename = "data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(proximity_raster, filename = "data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
+
+```
+
+```{r}
+# Capture the end time
+end_time <- Sys.time()
+
+# Calculate and print the runtime
+runtime <- end_time - start_time
+print(paste("Total runtime:", runtime))
+```
+
