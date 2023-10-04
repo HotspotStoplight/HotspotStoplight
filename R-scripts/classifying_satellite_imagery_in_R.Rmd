@@ -10,7 +10,7 @@ output: html_document
 rm(list=ls())
 
 # Set the working directory
-setwd("/Users/oliveratwood/Library/Mobile Documents/com~apple~CloudDocs/01 RESEARCH/UrbanEx-BioLoss/Exports")
+setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data")
 ```
 
 ```{r load libraries, message = FALSE}
