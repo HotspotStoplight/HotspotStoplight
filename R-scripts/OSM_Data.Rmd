@@ -11,8 +11,7 @@ rm(list=ls())
 
 ## R Markdown
 
-```{r cars}
-# install.packages("osmdata")
+```{r}
 library(osmdata)
 library(sf)
 library(ggplot2)

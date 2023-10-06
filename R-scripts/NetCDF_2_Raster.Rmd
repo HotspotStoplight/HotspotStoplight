@@ -1,0 +1,172 @@
+---
+title: "NetCDF_2_Raster"
+output: html_document
+date: "2023-10-05"
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+```
+
+# Preflight
+```{r setup2}
+
+library(ncdf4)
+library(raster)
+library(sf)
+library(maptools)
+library(sp)
+library(osmdata)
+library(httr)
+library(jsonlite)
+```
+
+## Setting Parameters
+```{r}
+
+
+# 
+# # Define a query for Costa Rica
+# query_costa_rica <- opq("Costa Rica")
+# 
+# # Define a query for San José
+# query_san_jose <- opq("San José, Costa Rica")
+# 
+# # Get the bounding box for Costa Rica
+# bb_costa_rica <- getbb("Costa Rica")
+# 
+# # Get OSM data for Costa Rica
+# data_costa_rica <- opq(bbox = bb_costa_rica) %>%
+#   add_osm_feature(key = "admin_level", value = "2", exact = TRUE) %>%  # 2: country level
+#   get_osm(osmdata_sf)
+# 
+# # Get the bounding box for San José
+# bb_san_jose <- getbb("San José, Costa Rica")
+# 
+# # Get OSM data for San José
+# data_san_jose <- opq(bbox = bb_san_jose) %>%
+#   add_osm_feature(key = "admin_level", value = "6", exact = TRUE) %>%  # 6: city level
+#   get_osm(osmdata_sf)
+
+
+
+# Coordinates
+coords2 <- c(-84.309082,9.792971,-83.847656,10.098670)
+coords <- c(-84.191666,9.869423,-83.960953,10.026329)
+
+# coords2 <- c(159, -10.40, 161.5, -8.75)
+# coords <- c(159.87837324022547, -9.506012864979633, 160.11732587694422, -9.365122938868943)
+coord_sys <- 32756
+resolution <- 300
+offset_val <- 001  # adjust as needed
+
+# Create a rectangle (polygon) from the coordinates
+rectangle <- st_polygon(list(matrix(c(coords[1], coords[2],
+                                     coords[1], coords[4],
+                                     coords[3], coords[4],
+                                     coords[3], coords[2],
+                                     coords[1], coords[2]), 
+                                     ncol=2, byrow=TRUE)))
+
+# Load rectangle
+# rectangle <- st_read()
+
+# BOUNDING BOX
+# Create an sf object and set its CRS to EPSG:4326 (WGS 84)
+rectangle_sf_wgs <- st_sf(geometry = st_sfc(rectangle, crs = 4326))
+
+# Get the bounding box
+bbox_wgs <- st_bbox(rectangle_sf_wgs)
+
+# Reproject the rectangle to EPSG:32756 (UTM Zone 56S)
+rectangle_sf_utm <- st_transform(rectangle_sf_wgs, coord_sys)
+
+# Get the bounding box
+bbox_utm <- st_bbox(rectangle_sf_utm)
+
+
+# BOUNDING BOX OFFSET
+
+# Create a rectangle (polygon) from the coordinates
+rectangle <- st_polygon(list(matrix(c(coords2[1], coords2[2],
+                                     coords2[1], coords2[4],
+                                     coords2[3], coords2[4],
+                                     coords2[3], coords2[2],
+                                     coords2[1], coords2[2]), 
+                                     ncol=2, byrow=TRUE)))
+
+# BOUNDING BOX
+# Create an sf object and set its CRS to EPSG:4326 (WGS 84)
+rectangle_sf_wgs <- st_sf(geometry = st_sfc(rectangle, crs = 4326))
+
+# Get the bounding box
+bbox_2wgs <- st_bbox(rectangle_sf_wgs)
+
+# Reproject the rectangle to EPSG:32756 (UTM Zone 56S)
+rectangle_sf_utm <- st_transform(rectangle_sf_wgs, coord_sys)
+
+# Get the bounding box
+bbox2_utm <- st_bbox(rectangle_sf_utm)
+
+```
+
+# Load Data (Local)
+```{r}
+# Define the path to the .nc file
+nc_path <- "G:/RESEARCH/00_DATA/Global/LandCoverHistoric/ESACCI-LC-L4-LCCS-Map-300m-P1Y-1992_2015-v2.0.7b.nc/C3S-LC-L4-LCCS-Map-300m-P1Y-2020-v2.1.1.nc"
+
+# Load the .nc file as a raster brick
+nc_raster <- brick(nc_path)
+
+# Explore the raster data
+crs(nc_raster)
+
+```
+
+```{r}
+# Clip the raster data
+clipped_raster <- crop(nc_raster, bbox_2wgs)
+res(clipped_raster)
+clipped_raster <- projectRaster(clipped_raster, crs = coord_sys)
+res(clipped_raster)
+clipped_raster <- crop(clipped_raster, bbox_utm)
+
+# Plot the raster data
+plot(clipped_raster)
+
+```
+# Load in Elevation Data
+```{r}
+# Define the file paths
+r1 <- "G:/RESEARCH/HotspotCities/StoplightRaster/StoplightRaster/00_Data/DEM/AP_07970_FBD_F6980_RT1/AP_07970_FBD_F6980_RT1.dem.tif"
+r2 <- "G:/RESEARCH/HotspotCities/StoplightRaster/StoplightRaster/00_Data/DEM/AP_07970_FBD_F6990_RT1/AP_07970_FBD_F6990_RT1.dem.tif" 
+r3 <- "G:/RESEARCH/HotspotCities/StoplightRaster/StoplightRaster/00_Data/DEM/AP_08218_FBD_F6980_RT1/AP_08218_FBD_F6980_RT1.dem.tif" 
+r4 <- "G:/RESEARCH/HotspotCities/StoplightRaster/StoplightRaster/00_Data/DEM/AP_08218_FBD_F6990_RT1/AP_08218_FBD_F6990_RT1.dem.tif" 
+r5 <- "G:/RESEARCH/HotspotCities/StoplightRaster/StoplightRaster/00_Data/DEM/AP_08393_FBD_F6980_RT1/AP_08393_FBD_F6980_RT1.dem.tif" 
+r6 <- "G:/RESEARCH/HotspotCities/StoplightRaster/StoplightRaster/00_Data/DEM/AP_08393_FBD_F6990_RT1/AP_08393_FBD_F6990_RT1.dem.tif" 
+r7 <- "G:/RESEARCH/HotspotCities/StoplightRaster/StoplightRaster/00_Data/DEM/AP_24993_FBD_F7000_RT1/AP_24993_FBD_F7000_RT1.dem.tif"
+
+# Read the .dem files into R
+r1 <- raster(r1)
+r2 <- raster(r2)
+r3 <- raster(r3)
+r4 <- raster(r4)
+r5 <- raster(r5)
+r6 <- raster(r6)
+r7 <- raster(r7)
+
+# Mosaic the rasters together
+mosaic_raster <- merge(r1, r2, r3, r4, r5, r6, r7, fun = mean, tolerance = 0.1)
+
+# Check the new mosaic raster
+plot(mosaic_raster)
+
+```
+Load in Population Data
+
+Load in Protected Area
+
+Make Fishnet
+
+
