@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import geopandas as gpd
 import shapely
 import time
+from geocube.api.core import make_geocube
+# from geocube.rasterize import rasterize_points_griddata, rasterize_points_radial
 
 pd.set_option('display.max_columns', 30)
 
@@ -65,3 +67,20 @@ def plot_abundance(count_df, species_name):
     count_df.plot(ax=ax, column='species_count', legend=True, cmap='Greens')
     # set the title
     ax.set_title('{} Abundance in CR'.format(species_name), fontsize=20)
+
+
+def output_geotiff(input_df,output_path, resolution):
+    """
+    convert the geo dataframe to geotiff and save it to path
+    """
+    lon_per_meter = 0.000008983
+    lat_per_meter = 0.000010966
+    out_grd = make_geocube(
+        vector_data=input_df,
+        measurements=["species_count"],
+        resolution=(resolution*lon_per_meter,resolution*lat_per_meter),
+        # rasterize_function=rasterize_points_griddata,
+        # fill=0
+    )
+    out_grd["species_count"].rio.to_raster(output_path)
+    return out_grd
