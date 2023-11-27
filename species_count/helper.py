@@ -78,9 +78,7 @@ def output_geotiff(input_df,output_path, resolution):
     out_grd = make_geocube(
         vector_data=input_df,
         measurements=["species_count"],
-        resolution=(resolution*lon_per_meter,resolution*lat_per_meter),
-        # rasterize_function=rasterize_points_griddata,
-        # fill=0
+        resolution=(-resolution*lat_per_meter,resolution*lon_per_meter),
     )
     out_grd["species_count"].rio.to_raster(output_path)
     return out_grd
