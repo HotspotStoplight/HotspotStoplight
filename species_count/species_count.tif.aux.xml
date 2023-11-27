@@ -1,0 +1,30 @@
+<PAMDataset>
+  <Metadata>
+    <MDI key="long_name">species_count</MDI>
+    <MDI key="name">species_count</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>species_count</Description>
+    <Histograms>
+      <HistItem>
+        <HistMin>5</HistMin>
+        <HistMax>299</HistMax>
+        <BucketCount>256</BucketCount>
+        <IncludeOutOfRange>1</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>2|3|1|3|0|0|3|2|0|1|2|0|0|3|0|1|0|0|0|1|19|6130|2018|3859|841|593|22|3|2|0|3|1|4|6|6|3|3|8|2|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|1|1|0|1|0|2|1|1|0|0|0|0|3|2|0|1|5|2|2|12|17|26|27|16|30|30|19|32|26|24|13|18|103|66|64|35|24|18|33|13|13|14|13|14|10|37|22|15|22|28|26|44|22|14|14|15|28|21|39|32|17|18|41|48|105|50|60|66|59|60|67|117|41|59|37|31|56|31|82|45|37|41|32|24|79|45|39|39|45|53|30|108|59|73|40|40|30|82|38|46|51|50|47|42|93|46|44|57|52|43|80|51|42|42|40|67|57|96|43|41|51|39|43|114|51|34|44|38|35|42|44|17|24|34|28|24|48|14|12|9|16|14|12|21|12|8|11|10|8|10|6|8|3|8|10|3|20|13|0|4|0|1|1|2</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_COVARIANCES">6920.630153452209</MDI>
+      <MDI key="STATISTICS_EXCLUDEDVALUES"></MDI>
+      <MDI key="STATISTICS_MAXIMUM">299</MDI>
+      <MDI key="STATISTICS_MEAN">81.138767459217</MDI>
+      <MDI key="STATISTICS_MEDIAN">31.517647</MDI>
+      <MDI key="STATISTICS_MINIMUM">5</MDI>
+      <MDI key="STATISTICS_SKIPFACTORX">1</MDI>
+      <MDI key="STATISTICS_SKIPFACTORY">1</MDI>
+      <MDI key="STATISTICS_STDDEV">83.190324878872</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>
