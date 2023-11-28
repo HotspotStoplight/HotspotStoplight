@@ -9,7 +9,24 @@ from geocube.api.core import make_geocube
 
 pd.set_option('display.max_columns', 30)
 
-def create_grid(target_polygon, resolution):
+def to_utm_crs(target_polygon):
+    """
+    Input: a polygon of the area of interest
+    Output: a polygon of the area of interest in utm_crs
+    """
+    # get the centroid of the target polygon
+    centroid = target_polygon.centroid
+    # get the utm zone of the centroid
+    utm_zone = int(((centroid.x.mean() + 180) // 6) + 1)
+    utm_crs = f'EPSG:326{utm_zone}' if centroid.y.mean() > 0 else f'EPSG:327{utm_zone}'
+    # convert the target polygon to utm_crs
+    gdf = gpd.GeoDataFrame({
+        'geometry': [target_polygon]
+    }, crs='EPSG:4326')  # EPSG:4326 is the standard CRS for geographic coordinates (WGS 84)
+    gdf_meters = gdf.to_crs(utm_crs)
+    return gdf_meters['geometry'][0]
+
+def create_grid_pointwise(target_polygon, resolution):
     """
     Input: a polygon of the area of interest; resolution(in meters)
     Output: A list of the grid coordinates of the given resolution.
@@ -28,6 +45,30 @@ def create_grid(target_polygon, resolution):
             if p.within(target_polygon):
                 points.append(shapely.geometry.Point(i,j))
     return points
+
+def create_grid(target_polygon, resolution):
+    """
+    Input: a polygon of the area of interest; resolution(in meters)
+    Output: A list of the polygons(in utm_crs) of the given resolution.
+    """
+    xmin, ymin, xmax, ymax = target_polygon.bounds
+    rows = int(np.ceil((ymax-ymin) / resolution))
+    cols = int(np.ceil((xmax-xmin) / resolution))
+    XleftOrigin = xmin
+    XrightOrigin = xmin + resolution
+    YtopOrigin = ymax
+    YbottomOrigin = ymax- resolution
+    polygons = []
+    for i in range(cols):
+        Ytop = YtopOrigin
+        Ybottom =YbottomOrigin
+        for j in range(rows):
+            polygons.append(shapely.geometry.Polygon([(XleftOrigin, Ytop), (XrightOrigin, Ytop), (XrightOrigin, Ybottom), (XleftOrigin, Ybottom)]))
+            Ytop = Ytop - resolution
+            Ybottom = Ybottom - resolution
+        XleftOrigin = XleftOrigin + resolution
+        XrightOrigin = XrightOrigin + resolution
+    return polygons
 
 def count_species(species_geo, point_list):
     """
@@ -73,12 +114,10 @@ def output_geotiff(input_df,output_path, resolution):
     """
     convert the geo dataframe to geotiff and save it to path
     """
-    lon_per_meter = 0.000008983
-    lat_per_meter = 0.000010966
     out_grd = make_geocube(
         vector_data=input_df,
         measurements=["species_count"],
-        resolution=(-resolution*lat_per_meter,resolution*lon_per_meter),
+        resolution=(-resolution,resolution),
     )
     out_grd["species_count"].rio.to_raster(output_path)
     return out_grd
