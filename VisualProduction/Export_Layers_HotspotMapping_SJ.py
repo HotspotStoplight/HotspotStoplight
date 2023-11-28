@@ -153,6 +153,19 @@ for lyr in lyrList:
 lyt.exportToPNG(docPath+"\\"+"MSA_Change_2050_SSP3_RCP6.PNG", transparent_background=True, resolution=150)
 
 
+print('Biodiversity Intactness'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+for lyr in lyrList:   
+   lyr.visible = False
+
+lyrList = m.listLayers("BiodiversityIntactness_2020.tif")
+for lyr in lyrList:   
+   lyr.visible = True
+
+lyt.exportToPNG(docPath+"\\"+"Biodiversity_Intactness_2020.PNG", transparent_background=True, resolution=150)
+
+
+
 print('LC_Vulnerability'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 for lyr in lyrList:   
