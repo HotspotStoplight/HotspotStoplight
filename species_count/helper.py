@@ -119,5 +119,6 @@ def output_geotiff(input_df,output_path, resolution):
         measurements=["species_count"],
         resolution=(-resolution,resolution),
     )
+    out_grd = out_grd.rio.reproject("EPSG:4326")
     out_grd["species_count"].rio.to_raster(output_path)
     return out_grd
