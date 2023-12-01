@@ -102,16 +102,16 @@ for lyr in lyrList:
 lyt.exportToPNG(docPath+"\\"+"UrbanExpansion_2050.PNG", transparent_background=True, resolution=150)
 
 
-print('species_counts'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+print('IUCN Threatened Species'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 for lyr in lyrList:   
    lyr.visible = False
 
-lyrList = m.listLayers("species_count_Mam_Rep_Amph")
+lyrList = m.listLayers("IUCN_Species_CR.tif")
 for lyr in lyrList:   
    lyr.visible = True
 
-lyt.exportToPNG(docPath+"\\"+"species_counts.PNG", transparent_background=True, resolution=150)
+lyt.exportToPNG(docPath+"\\"+"IUCN_Threatened_Species.PNG", transparent_background=True, resolution=150)
 
 
 
