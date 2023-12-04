@@ -31,37 +31,27 @@ start_time <- Sys.time()
 
 coordinate_system <- 32756
 
-resolution <- 30
+resolution <- 1000
 
 
 
 ```
 
 ```{r Extablish bbox, echo=FALSE}
-
 # Read the GeoJSON file
-geojson_file <- "/Users/oliveratwood/Box Sync/Hotspot Stoplight Data/CR_Crop4.geojson"
-geo_data <- st_read(geojson_file)
-
-# # Assuming you want the first polygon (adjust as needed)
-# polygon <- geo_data[1, ]
+crop <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
 
 # Extract coordinates
-coords <- st_coordinates(geo_data)
+coords <- st_coordinates(crop)
 
 # If you need to format the coordinates as a vector
 coords_vector <- as.vector(t(coords))
 
-# If you need only the first and last point as in your example format
+# If you need only the first and last point
 coords <- c(coords_vector[1], coords_vector[2], coords_vector[nrow(coords) * 2 - 1], coords_vector[nrow(coords) * 2])
 
 # Create a rectangle (polygon) from the coordinates
-rectangle <- st_polygon(list(matrix(c(coords[1], coords[2],
-                                     coords[1], coords[4],
-                                     coords[3], coords[4],
-                                     coords[3], coords[2],
-                                     coords[1], coords[2]), 
-                                     ncol=2, byrow=TRUE)))
+rectangle <- st_polygon(list(matrix(c(coords[1], coords[2], coords[1], coords[4], coords[3], coords[4], coords[3], coords[2], coords[1], coords[2]), ncol=2, byrow=TRUE)))
 
 # Create an sf object and set its CRS to EPSG:4326 (WGS 84)
 rectangle_sf <- st_sf(geometry = st_sfc(rectangle, crs = 4326))
@@ -177,16 +167,16 @@ bbox_utm_extent <- extent(c(bbox_utm["xmin"], bbox_utm["xmax"], bbox_utm["ymin"]
 r <- raster(bbox_utm_extent, res = resolution, crs = st_crs(coordinate_system))
 
 ### ALL ROADS 
-# # Rasterize road count
-# roads_raster_utm <- rasterize(all_roads, r, field = 1, fun = "count")
-# # Clone the roads_raster_utm to create binary_roads_raster
-# binary_roads_raster <- roads_raster_utm
-# # Replace all non-zero values with 1
-# binary_roads_raster[binary_roads_raster > 0] <- 1
-# # Replace all zero values with NA
-# binary_roads_raster[binary_roads_raster == 0] <- NA
-# # Compute road proximity
-# road_proximity <- distance(binary_roads_raster)
+# Rasterize road count
+roads_raster_utm <- rasterize(all_roads, r, field = 1, fun = "count")
+# Clone the roads_raster_utm to create binary_roads_raster
+binary_roads_raster <- roads_raster_utm
+# Replace all non-zero values with 1
+binary_roads_raster[binary_roads_raster > 0] <- 1
+# Replace all zero values with NA
+binary_roads_raster[binary_roads_raster == 0] <- NA
+# Compute road proximity
+road_proximity <- distance(binary_roads_raster)
 
 ### HIGHWAY
 highway_raster_utm <- rasterize(highway, r, field = 1, fun = "count")
@@ -202,10 +192,10 @@ plot(road_proximity, main = "Proximity to Roads")
 plot(highway_proximity, main = "Proximity to highways")
 
 # write rasters
-writeRaster(binary_roads_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
-writeRaster(road_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
-writeRaster(binary_highway_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_binary.tif", format = "GTiff", overwrite = TRUE)
-writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(binary_roads_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(road_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(binary_highway_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_binary.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
 ```
 
