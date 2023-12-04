@@ -109,16 +109,6 @@ palette10 <- c("#f7fcf0","#e0f3db","#ccebc5","#a8ddb5","#7bccc4",
 
 ```
 
-## Setting Parameters
-```{r}
-coordinate_system <- 32756
-
-resolution <- 1000
-
-
-
-```
-
 We also include several helper functions. `quintilesBreaks` takes a dataframe and a column and outputs the quintiles breaks, helping shorten the `ggplot` calls below.
 
 It takes longer to `ggplot` a polygon fishnet with `geom_sf` than it does to plot `geom_point`. To cut down on plotting time, the `xyC` (for ‘XY Coordinates’) takes a fishnet `sf` and converts it to a dataframe of grid cell centroid coordinates.
@@ -146,6 +136,19 @@ rast <- function(inRaster) {
     value = getValues(inRaster)) }
 ```
 
+## Setting Parameters
+```{r}
+# coordinate_system <- 32756
+# resolution <- 10000
+
+coordinate_system <- 4326
+# Target resolution in m
+resolution <- 300
+# Conversion to degrees
+resolution <- (resolution/30)/3600
+
+```
+
 
 # 2. Data Wrangling & Feature Engineering
 
@@ -165,31 +168,66 @@ In this section a considerable amount of vector and raster data is wrangled toge
 
 2.8: Features are wrangled into a final dataset.
 
-Data from each of these datasets is integrated into the vector fishnet to provide a comprehensive snapshot of the development process and context in and around Honiara between 2010 and 2020.
+Data from each of these datasets is integrated into the vector fishnet to provide a comprehensive snapshot of the development process and context in and around San Jose between 2013 and 2023.
 <br>
 
 ## 2.1. Land Cover Change Data
 
-We aim to forecast the dependent variable of land cover change between 2010 and 2019. In this section, we load the land cover raster data, reclassify it, and integrate it with a vector fishnet. This allows us to parameterize spatial relationships in a regression context.
+We aim to forecast the dependent variable of land cover change between 2013 and 2019. In this section, we load the land cover raster data, reclassify it, and integrate it with a vector fishnet. This allows us to parameterize spatial relationships in a regression context.
 
-The table below shows descriptions of each categorical land cover type in the land cover data. Below, we will reclassify these data into more useful categories.
+The table below shows descriptions of each categorical land cover type in the Sentinel Derivedland cover data. Below, we will reclassify these data into more useful categories.
 
-| Class Value | Classification Description                                                            |
-| ----------- | ------------------------------------------------------------------------------------- |
-| 0           |  Remnant Habitat - Forest                                                             |
-| 1          |   Herbaceous cover                                                                    |
-| 2          |   Tree or shrub cover                                                                 |
-| 3          |   Mosaic cropland (>50%) / natural vegetation (Tree, shrub, herbaceous cover) (<50%)  |
-| 4          |   Mosaic natural vegetation (Tree, shrub, herbaceous cover) (>50%) / cropland (<50%)  |
-| 5          |   Tree cover, broadleaved, evergreen, closed to open (>15%)                           |
+| Class Value | Classification Description      |
+| ----------- | ------------------------------- |
+| 0           |   NoData                        |
+| 1           |   Forest                        |
+| 2           |   Grassland/Cropland            |
+| 3           |   Urban                         |
+| 4           |   Water                         |
+| 5           |   Wetland/Mangroves             |
  
-Several raster layers have been provided for this analysis: 
+Several layers have been provided for this analysis: 
 
-- We read in `SanJose_Grid` - this is a fishnet covering the extent of our study area 
+- We create `SJ__Grid` - this is a fishnet covering the extent of our study area 
 
 - `lc_change` is a raster of land cover change - where there were conversions between one land cover and another on the time frame 2001-2019. We plot the raster using `ggplot` and the `rast` function specified above.
 
 Note that `lc_change` is projected as `WGS 1984 PDC Mercator` and is spatially referenced as `EPSG:3832`. It has also been clipped in ArcGIS to the boundary of our study area. 
+
+
+```{r set bounding boxes}
+# Read the GeoJSON file
+crop <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+
+lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
+
+lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
+
+# Clip the rasters with the polygon
+lc_2013 <- mask(lc_2013, crop)
+lc_2023 <- mask(lc_2023, crop)
+
+lc_2013 <- projectRaster(lc_2013, crs = coordinate_system)
+lc_2023 <- projectRaster(lc_2023, crs = coordinate_system)
+
+```
+
+```{r make fishnet}
+# Get extents of lc_2013
+lc_2013_extent <- extent(lc_2013)
+
+# Create an empty raster with lc_2013's extent
+r <- raster(lc_2013_extent, res = resolution, crs = coordinate_system)
+
+# Create the fishnet
+SJ_Grid <- rasterToPolygons(r, fun = NULL, dissolve = FALSE)
+SJ_Grid <- st_as_sf(SJ_Grid)
+SJ_Grid <- st_set_crs(SJ_Grid, coordinate_system)
+
+# Plot the fishnet
+plot(SJ_Grid, main = "Fishnet Grid", col = 'blue')
+
+```
 
 ```{r}
 # # Load rasters
@@ -216,169 +254,80 @@ Note that `lc_change` is projected as `WGS 1984 PDC Mercator` and is spatially r
 # raster_stack <- stack(raster1, aligned_raster2)
 ```
 
-```{r set bounding boxes}
-# Read the GeoJSON file
-crop <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop3.geojson")
+Now we calculate the pixels that changed to urban. We apply a name to the raster with `names`. This is done to make it faster to join raster to the fishnet below. 
+```{r}
+# Apply the conditions
+condition_2013 <- lc_2013 != 3
+condition_2023 <- lc_2023 == 3
 
-# # Extract coordinates
-# coords <- st_coordinates(crop)
-# 
-# # If you need to format the coordinates as a vector
-# coords_vector <- as.vector(t(coords))
-# 
-# # If you need only the first and last point
-# coords <- c(coords_vector[1], coords_vector[2], coords_vector[nrow(coords) * 2 - 1], coords_vector[nrow(coords) * 2])
-# 
-# # Create a rectangle (polygon) from the coordinates
-# rectangle <- st_polygon(list(matrix(c(coords[1], coords[2], coords[1], coords[4], coords[3], coords[4], coords[3], coords[2], coords[1], coords[2]), ncol=2, byrow=TRUE)))
-# 
-# # Create an sf object and set its CRS to EPSG:4326 (WGS 84)
-# rectangle_sf <- st_sf(geometry = st_sfc(rectangle, crs = 4326))
-# 
-# # Get the bounding box
-# bbox <- st_bbox(rectangle_sf)
-# 
-# # Reproject the rectangle to EPSG:32756 (UTM Zone 56S)
-# rectangle_sf_utm <- st_transform(rectangle_sf, coordinate_system)
-# 
-# # Get the bounding box
-# bbox_utm <- st_bbox(rectangle_sf_utm)
+# Combine the conditions to create a binary raster
+lc_change <- condition_2013 & condition_2023
 
-```
+# Convert to binary values (1 for TRUE, 0 for FALSE)
+lc_change <- as.integer(lc_change)
 
-```{r make fishnet}
-# Convert sf object to sp object
-rectangle_sp <- as(crop, "Spatial")
+# Change 0 values to NA
+lc_change[lc_change == 0] <- NA
+names(lc_change) <- "lc_change"
 
-# Create an empty raster with 300m resolution
-raster_template <- raster(extent(crop), resolution = resolution)
+# Plot the binary raster (optional)
+plot(lc_change, main="Land Cover Change to Urban")
 
-# Create the fishnet
-fishnet <- rasterToPolygons(raster_template, fun=NULL, dissolve=FALSE)
-
-# Plot the fishnet
-plot(fishnet, main = "Fishnet Grid", col = 'blue', border = 'black')
-
-# If you also want to plot the original sf object for comparison
-plot(st_geometry(crop), add = TRUE, col = 'red')
-
-```
-
-
-```{r load_data, warning = FALSE, message = FALSE, results = "hide"}
-SanJose_Grid <-
-  st_read("https://raw.githubusercontent.com/Yingtong-Z/sprawl-forecasting/b528d725eaea5dd778c41fa644b5e6f71d6291b2/data/Cville_Hex.geojson") %>%
-
-  st_transform('EPSG:3832')
-
-lc_change = raster("https://raw.githubusercontent.com/Yingtong-Z/sprawl-forecasting/b528d725eaea5dd778c41fa644b5e6f71d6291b2/data/LC_Change_2001_2019.tif")
-  
-lc_change <- projectRaster(lc_change, crs = CRS("+init=epsg:3832"))
-
-```
-
-We now plot Land Cover Change within our MSA.
-
-```{r plot_msa, warning= FALSE, message= FALSE}
-ggplot() +
-  geom_raster(data=rast(lc_change) %>% na.omit %>% filter(value > 0), 
-              aes(x,y,fill=as.factor(value))) +
-  scale_fill_viridis(direction = -1, discrete=TRUE, name ="Land Cover\nChange") +
-  labs(title = "Land Cover Change, 2000-2019") +
-  mapTheme +
-  theme(legend.direction="horizontal")
-```
-
-Now we convert all 0’s to `NA`. We apply a name to the raster with `names`. This is done to make it faster to join raster to the fishnet below. 
-
-```{r, warning = FALSE, message = FALSE}
-lc_change2 <- lc_change
-
-lc_change2[lc_change2 < 1] <- NA
-
-names(lc_change2) <- "lc_change"
-
-ggplot() +
-  geom_sf(data=CvilleMSA, fill = "grey", color = "transparent")+
-  geom_raster(data=rast(lc_change2) %>% na.omit, 
-              aes(x,y,fill=as.factor(value))) +
-  scale_fill_viridis(discrete=TRUE, name ="Land Cover\nChange") + 
-  labs(title="Development Land Use Change") +
-  mapTheme
 ```
 
 The code below converts the raster to an `sf` point layer and then joins the points to the fishnet with `aggregate`. Finally, the fishnet variable `lc_change` is created that is `1` where new development has occurred and `0` where it has not. This is our dependent variable and encoded as a factor.
 
 ```{r, warning = FALSE, message = FALSE}
 changePoints <-
-  rasterToPoints(lc_change2) %>%
+  rasterToPoints(lc_change) %>%
   as.data.frame() %>%
-  st_as_sf(coords = c("x", "y"), crs = st_crs(CvilleMSA))
+  st_as_sf(coords = c("x", "y"), crs = st_crs(SJ_Grid))
 
-fishnet <- 
-  aggregate(changePoints, CvilleMSA, sum) %>%
-  mutate(lc_change = ifelse(is.na(lc_change),0,1),
-         lc_change = as.factor(lc_change))
-# Plot
-# To speed up the mapping process, fishnet polygons are converted to centroid points using the `xyC` function defined earlier  
-# ggplot() +
-#   geom_sf(data=fishnet, aes(fill=lc_change), color=NA) +
-#   scale_fill_manual(values = palette2, labels=c("No Change","New Development"), name = "") +
-#   labs(title = "Land Cover Development Change", subtitle = "As fishnet centroids") +
-#   mapTheme
+SJ_Grid <-
+  aggregate(changePoints, SJ_Grid, sum)
+
+# Plotting
+ggplot() +
+  geom_sf(data = SJ_Grid, aes(fill = lc_change), color = 'blue') +  # Use 'layer' for fill color
+  # geom_sf(data = changePoints, color = 'red', size = 0.1) +
+  theme_minimal() +
+  labs(title = "Change Points and SJ_Grid") +
+  scale_fill_viridis_c()
+
 ```
 
-## 2.2. Land Cover in 2010
+## 2.2. Land Cover in 2013
 
-It is reasonable to hypothesize that the propensity of new development is a function of existing land cover categories. In this section we identify these other land cover categories from 2001 and integrate each with the fishnet.
+It is reasonable to hypothesize that the propensity of new development is a function of existing land cover categories. In this section we identify these other land cover categories from 2013 and integrate each with the fishnet.
 
 ```{r, warning = FALSE, message = FALSE}
-lc_2010 <- raster("https://raw.githubusercontent.com/Yingtong-Z/sprawl-forecasting/b528d725eaea5dd778c41fa644b5e6f71d6291b2/data/Cville_LC_2001.tif")
-
-ggplot() +
-  geom_raster(data=rast(lc_2010) %>% na.omit %>% filter(value > 0), 
-              aes(x,y,fill=as.factor(value))) +
-  scale_fill_viridis(discrete=TRUE, name ="") +
-  labs(title = "Land Cover, 2010") +
-  mapTheme +
-  theme(legend.direction="horizontal")
+plot(lc_2013)
 ```
 
 
 The table below shows the approach taken to recode existing land cover codes into the categories used in our analysis. In the code block below new rasters are generated and `names` are applied. Naming ensures that when the raster is integrated with the fishnet, the column reflects the appropriate raster.
 
 
-
-| Class Value | Classification Description                                                            | New Classification
-| ----------- | ------------------------------------------------------------------------------------- | ----------------------------
-| 10          |   Cropland, rainfed                                                                   | Farm
-| 11          |   Herbaceous cover                                                                    | Other Undeveloped
-| 12          |   Tree or shrub cover                                                                 | Forest
-| 30          |   Mosaic cropland (>50%) / natural vegetation (Tree, shrub, herbaceous cover) (<50%)  | Farm
-| 40          |   Mosaic natural vegetation (Tree, shrub, herbaceous cover) (>50%) / cropland (<50%)  | Forest
-| 50          |   Tree cover, broadleaved, evergreen, closed to open (>15%)                           | Forest
-| 100         |   Mosaic Tree and shrub (>50%) / herbaceous cover (<50%)                              | Forest
-| 120         |   Shrubland                                                                           | Other Undeveloped
-| 150         |   Sparse vegetation (tree, shrub, herbaceous cover) (<15%)                            | Other Undeveloped
-| 160         |   Tree cover, flooded, fresh or brakish water                                         | Wetlands
-| 170         |   Tree cover, flooded, saline water                                                   | Wetlands
-| 190         |   Urban                                                                               | Developed
-| 210         |   Water                                                                               | Water
+| Class Value | Classification Description      | New Classification
+| ----------- | ------------------------------- | ---------------------
+| 0           |   NoData                        | Forest
+| 1           |   Forest                        | Forest
+| 2           |   Grassland/Cropland            | Crop
+| 3           |   Urban                         | Urban
+| 4           |   Water                         | Water
+| 5           |   Wetland/Mangroves             | Forest
 
 ```{r, warning = FALSE, message = FALSE}
-developed <- lc_2010 == 190
-forest <- lc_2010 == 12 | lc_2010 == 40 | lc_2010 == 50 | lc_2010 == 100
-farm <- lc_2010 == 30 | lc_2010 == 10 
-wetlands <- lc_2010 == 160 | lc_2010 == 170
-otherUndeveloped <- lc_2010 == 11 | lc_2010 == 120 | lc_2010 == 150 
-water <- lc_2010 == 210
+urban <- lc_2013 == 3
+forest <- lc_2013 == 0 | lc_2013 == 1 | lc_2013 == 5
+crop <- lc_2013 == 2
+water <- lc_2013 == 4
 
-names(developed) <- "developed"
+names(urban) <- "urban"
 names(forest) <- "forest"
-names(farm) <- "farm"
-names(wetlands) <- "wetlands"
-names(otherUndeveloped) <- "otherUndeveloped"
-names(water) <- "water"
+names(crop) <- "crop"
+names(water) <- "wetlands"
+
 ```
 
 Next, each raster is aggregated to the fishnet by way of a function called `aggregateRaster`. Here, the process used above to To do this, a function is created below that loops through a list of rasters, converts the _ith_ raster to points, filters only points that have value of `1` (ie. is the _ith_ land cover type), and then aggregates to the fishnet.
@@ -418,34 +367,32 @@ Note that since our land cover data is at a different resolution than our fishne
 Note also the inclusion of `st_cast` here which convert all geometries to `POLYGON`. If we create a frequency table of geometry types in `aggregatedRasters`, we will notice some and handful of `MULTIPOLYGONS`. Try `table(st_geometry_type(aggregatedRasters)`). These rogue multipolygons break the `xyC` function which is designed to find grid cell centroids. After all, there is no one centroid of several combined polygons. Thus `st_cast` ensures all geometries are just `POLYGON`.
 
 ```{r, warning = FALSE, message = FALSE}
-theRasterList <- c(developed,forest,farm,wetlands,otherUndeveloped,water)
+theRasterList <- c("urban", "forest", "crop", "water")
 
 aggregatedRasters <-
-  aggregateRaster(theRasterList, SanJose_Grid) %>%
-  dplyr::select(developed,forest,farm,wetlands,otherUndeveloped,water) %>%
+  aggregateRaster(theRasterList, SJ_Grid) %>%
+  dplyr::select(urban,forest,crop,water) %>%
   mutate_if(is.numeric,as.factor)
 
 # reassign cells with more than one lc value to just one based on hierarchy shown here
 aggregatedRasters <- aggregatedRasters %>%
-    mutate(farm = ifelse(developed == 0 & farm == 1, 1, 0)) %>%
+    mutate(crop = ifelse(developed == 0 & farm == 1, 1, 0)) %>%
     mutate(forest = ifelse(developed == 0 & farm == 0 & forest == 1, 1, 0)) %>%
-    mutate(wetlands = ifelse(developed == 0 & farm == 0 & forest == 0 & wetlands == 1, 1, 0)) %>%
-    mutate(water = ifelse(developed == 0 & farm == 0 & forest == 0 & wetlands == 0 & water == 1, 1, 0)) %>%
-    mutate(otherUndeveloped = ifelse(developed == 0 & farm == 0 & forest == 0 & wetlands == 0 & water == 0 & otherUndeveloped == 1, 1, 0))
+    mutate(water = ifelse(developed == 0 & farm == 0 & forest == 0 & water == 1, 1, 0))
 
 aggregatedRasters %>%
-  gather(var,value,developed:water) %>%
+  gather(var,value,urban:water) %>%
   st_cast("POLYGON") %>%    #just to make sure no weird geometries slipped in
   mutate(X = xyC(.)$x,
          Y = xyC(.)$y) %>%
   ggplot() +
-    geom_sf(data=CvilleMSA) +
+    geom_sf(data=SJ_Grid) +
     geom_point(aes(X,Y, colour=as.factor(value)), size =0.1) +
     facet_wrap(~var) +
     scale_colour_manual(values = palette2,
                         labels=c("Other","Land Cover"),
                         name = "") +
-    labs(title = "Land Cover Types, 2001",
+    labs(title = "Land Cover Types, 2013",
          subtitle = "As fishnet centroids") +
    mapTheme
 ```
@@ -583,18 +530,18 @@ ggplot()+
 To join the demographic data to fishnet, a spatial join would be inappropriate as it would assign the same demographic feature value from one tract to the many intersecting grid cells. Instead, the area weighted interpolation function, `st_interpolate_aw`, assigns a proportion of a tract’s demographic feature to a grid cell weighted by the proportion of the tract that intersects the grid cell. This works best when we assume that the block group population is uniformly distributed across the block group. This is typically not a great assumption. However, it is a reasonable here particularly given demographic features in a regression and not an outcome that needs to be measured with significant precision.
 
 ```{r, warning = FALSE, message = FALSE}
-CvilleMSA <-
-  CvilleMSA %>%
+SJ__Grid <-
+  SJ__Grid %>%
   rownames_to_column("fishnetID") %>% 
   mutate(fishnetID = as.numeric(fishnetID)) %>%
   dplyr::select(fishnetID)
 
 # Transform Projection of Census Data
 cvam_2000_census <- cvam_2000_census %>% 
-  st_transform(st_crs(CvilleMSA))
+  st_transform(st_crs(SJ__Grid))
 
 cvam_2020_census <- cvam_2020_census %>% 
-  st_transform(st_crs(CvilleMSA))
+  st_transform(st_crs(SJ__Grid))
 ```
 
 
@@ -605,10 +552,10 @@ cvam_2020_census <- cvam_2020_census %>%
 interpolate_column2000 <- function(column_name) {
   
   interpolated_data <-
-    st_interpolate_aw(cvam_2000_census[column_name], CvilleMSA, extensive=TRUE) %>%
+    st_interpolate_aw(cvam_2000_census[column_name], SJ__Grid, extensive=TRUE) %>%
     as.data.frame(.) %>%
     rownames_to_column(var = "fishnetID") %>%
-    left_join(CvilleMSA %>%
+    left_join(SJ__Grid %>%
                 mutate(fishnetID = as.character(fishnetID)),
               ., by=c("fishnetID"='fishnetID')) %>% 
     mutate(!!column_name := replace_na(!!sym(column_name), 0)) %>%
@@ -627,10 +574,10 @@ fishnetGraduate00 <- interpolate_column2000('total_graduate_degree_holders')
 interpolate_column2020 <- function(column_name) {
   
   interpolated_data <-
-    st_interpolate_aw(cvam_2020_census[column_name], CvilleMSA, extensive=TRUE) %>%
+    st_interpolate_aw(cvam_2020_census[column_name], SJ__Grid, extensive=TRUE) %>%
     as.data.frame(.) %>%
     rownames_to_column(var = "fishnetID") %>%
-    left_join(CvilleMSA %>%
+    left_join(SJ__Grid %>%
                 mutate(fishnetID = as.character(fishnetID)),
               ., by=c("fishnetID"='fishnetID')) %>% 
     mutate(!!column_name := replace_na(!!sym(column_name), 0)) %>%
@@ -664,8 +611,8 @@ First highway vectors are imported in `geojson` format; projected and subset to 
 ```{r read and plot highway, warning = FALSE, message= FALSE,results = "hide"}
 CvilleHighways <-
   st_read("https://raw.githubusercontent.com/Yingtong-Z/sprawl-forecasting/b528d725eaea5dd778c41fa644b5e6f71d6291b2/data/Cville_Highways.geojson") %>%
-  st_transform(st_crs(CvilleMSA)) %>%
-  st_intersection(CvilleMSA)
+  st_transform(st_crs(SJ__Grid)) %>%
+  st_intersection(SJ__Grid)
 
 ggplot() +
   geom_point(data=fishnet, 
@@ -696,14 +643,14 @@ names(highway_raster_distance) <- "distance_highways"
 highwayPoints <-
   rasterToPoints(highway_raster_distance) %>%
   as.data.frame() %>%
-  st_as_sf(coords = c("x", "y"), crs = st_crs(CvilleMSA))
+  st_as_sf(coords = c("x", "y"), crs = st_crs(SJ__Grid))
 
 highwayPoints_fishnet <- 
-  aggregate(highwayPoints, CvilleMSA, mean) %>%
+  aggregate(highwayPoints, SJ__Grid, mean) %>%
   mutate(distance_highways = ifelse(is.na(distance_highways),0,distance_highways))
 
 ggplot() +
-  geom_sf(data=CvilleMSA) +
+  geom_sf(data=SJ__Grid) +
   geom_point(data=highwayPoints_fishnet, aes(x=xyC(highwayPoints_fishnet)[,1], 
                                              y=xyC(highwayPoints_fishnet)[,2], 
                  colour=factor(ntile(distance_highways,5))),size=1.5) +
@@ -787,7 +734,7 @@ fishnet$lagDevelopment <-
                 2)
 
 ggplot() +
-  geom_sf(data=CvilleMSA) +
+  geom_sf(data=SJ__Grid) +
   geom_point(data=fishnet, 
              aes(x=xyC(fishnet)[,1], y=xyC(fishnet)[,2], 
                  colour=factor(ntile(lagDevelopment,5))), size=0.01) +
@@ -808,9 +755,9 @@ options(tigris_class = "sf")
 
 studyAreaCounties <- 
   counties("Virginia") %>%
-  st_transform(st_crs(CvilleMSA)) %>%
+  st_transform(st_crs(SJ__Grid)) %>%
   dplyr::select(NAME) %>%
-  .[st_buffer(CvilleMSA,-1), , op=st_intersects] 
+  .[st_buffer(SJ__Grid,-1), , op=st_intersects] 
 ```
 
 
@@ -1224,7 +1171,7 @@ dat2 %>%
   mutate(X = st_coordinates(.)[,1],
          Y = st_coordinates(.)[,2]) %>%
   ggplot() +
-    geom_sf(data=CvilleMSA) +
+    geom_sf(data=SJ__Grid) +
     geom_point(aes(X,Y, colour=as.factor(value)), size = 0.1) +
     facet_wrap(~var) +
     scale_colour_manual(values = palette2,
