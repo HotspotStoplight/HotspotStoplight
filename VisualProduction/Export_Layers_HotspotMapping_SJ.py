@@ -177,6 +177,19 @@ for lyr in lyrList:
 
 lyt.exportToPNG(docPath+"\\"+"Land_Cover_Vulnerability_2050.PNG", transparent_background=True, resolution=300)
 
+
+print('RiverFloodRisk'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+for lyr in lyrList:   
+   lyr.visible = False
+
+lyrList = m.listLayers("rf.tif_intensity")
+for lyr in lyrList:   
+   lyr.visible = True
+
+lyt.exportToPNG(docPath+"\\"+"RiverFloodRisk.PNG", transparent_background=True, resolution=300)
+
+
 ##_________________________________________________________________________________________________________________
 
 
