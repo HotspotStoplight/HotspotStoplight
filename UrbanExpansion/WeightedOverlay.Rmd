@@ -1,0 +1,54 @@
+---
+title: "OSM Data Wrangling"
+output: html_document
+date: "2023-09-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+```
+
+## R Markdown
+
+```{r}
+library(osmdata)
+library(sf)
+library(ggplot2)
+library(raster)
+library(dplyr)
+
+# Capture the start time
+start_time <- Sys.time()
+```
+
+## Setting Parameters
+```{r}
+# coordinate_system <- 32756
+# 
+# resolution <- 300
+
+coordinate_system <- 4326
+# Target resolution in m
+resolution <- 300
+# Conversion to degrees
+resolution <- (resolution/30)/3600
+
+```
+
+```{r Extablish bbox, echo=FALSE}
+# Read the GeoJSON file
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+
+```
+
+
+```{r timer_end}
+# Capture the end time
+end_time <- Sys.time()
+
+# Calculate and print the runtime
+runtime <- end_time - start_time
+print(paste("Total runtime:", runtime))
+```
+
