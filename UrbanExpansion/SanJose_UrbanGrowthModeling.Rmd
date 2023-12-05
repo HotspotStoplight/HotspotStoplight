@@ -143,7 +143,7 @@ rast <- function(inRaster) {
 
 coordinate_system <- 4326
 # Target resolution in m
-resolution <- 300
+resolution <- 30
 # Conversion to degrees
 resolution <- (resolution/30)/3600
 
@@ -195,26 +195,75 @@ Several layers have been provided for this analysis:
 Note that `lc_change` is projected as `WGS 1984 PDC Mercator` and is spatially referenced as `EPSG:3832`. It has also been clipped in ArcGIS to the boundary of our study area. 
 
 
-```{r set bounding boxes}
+```{r raster pre-processing}
 # Read the GeoJSON file
-crop <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 
 lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
 
 lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
 
-# Clip the rasters with the polygon
-lc_2013 <- mask(lc_2013, crop)
-lc_2023 <- mask(lc_2023, crop)
+pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
+pop2010 <- projectRaster(pop2010, crs = coordinate_system)
 
+pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
+pop2020 <- projectRaster(pop2020, crs = coordinate_system)
+
+slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
+slope <- projectRaster(slope, crs = coordinate_system)
+
+wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
+wdpa <- projectRaster(wdpa, crs = coordinate_system)
+
+# Clip the rasters with the polygon
+lc_2013 <- mask(lc_2013, cropbox)
+lc_2023 <- mask(lc_2023, cropbox)
+pop2010 <- mask(pop2010, cropbox)
+pop2020 <- mask(pop2020, cropbox)
+slope <- mask(slope, cropbox)
+wdpa <- mask(wdpa, cropbox)
+
+# Project the rasters to the correct coordinate system
 lc_2013 <- projectRaster(lc_2013, crs = coordinate_system)
 lc_2023 <- projectRaster(lc_2023, crs = coordinate_system)
 
 ```
+```{r}
+# # Check alignment
+# print(extent(lc_2013))
+# print(extent(lc_2023))
+# print(extent(pop2010))
+# print(extent(pop2020))
+# print(extent(slope))
+# print(extent(wdpa))
+# print(res(lc_2013))
+# print(res(lc_2023))
+# print(res(pop2010))
+# print(res(pop2020))
+# print(res(slope))
+# print(res(wdpa))
+# print(crs(lc_2013))
+# print(crs(lc_2023))
+# print(crs(pop2010))
+# print(crs(pop2020))
+# print(crs(slope))
+# print(crs(wdpa))
+# 
+# # Align raster2 to raster1
+# aligned_raster2 <- projectRaster(pop2010, lc_2013)
+# 
+# # Verify alignment
+# print(extent(aligned_raster2))
+# print(res(aligned_raster2))
+# print(crs(aligned_raster2))
+# 
+# # Create a RasterStack
+# raster_stack <- stack(raster1, aligned_raster2)
+```
 
-```{r make fishnet}
+```{r make fishnet, fig.width=10}
 # Get extents of lc_2013
-lc_2013_extent <- extent(lc_2013)
+lc_2013_extent <- extent(cropbox)
 
 # Create an empty raster with lc_2013's extent
 r <- raster(lc_2013_extent, res = resolution, crs = coordinate_system)
@@ -225,33 +274,8 @@ SJ_Grid <- st_as_sf(SJ_Grid)
 SJ_Grid <- st_set_crs(SJ_Grid, coordinate_system)
 
 # Plot the fishnet
-plot(SJ_Grid, main = "Fishnet Grid", col = 'blue')
+plot(SJ_Grid, main = "Fishnet Grid", col = 'blue', border = NA)
 
-```
-
-```{r}
-# # Load rasters
-# raster1 <- raster("path_to_raster1.tif")
-# raster2 <- raster("path_to_raster2.tif")
-# 
-# # Check alignment
-# print(extent(raster1))
-# print(extent(raster2))
-# print(res(raster1))
-# print(res(raster2))
-# print(crs(raster1))
-# print(crs(raster2))
-# 
-# # Align raster2 to raster1
-# aligned_raster2 <- projectRaster(raster2, raster1)
-# 
-# # Verify alignment
-# print(extent(aligned_raster2))
-# print(res(aligned_raster2))
-# print(crs(aligned_raster2))
-# 
-# # Create a RasterStack
-# raster_stack <- stack(raster1, aligned_raster2)
 ```
 
 Now we calculate the pixels that changed to urban. We apply a name to the raster with `names`. This is done to make it faster to join raster to the fishnet below. 
@@ -326,38 +350,59 @@ water <- lc_2013 == 4
 names(urban) <- "urban"
 names(forest) <- "forest"
 names(crop) <- "crop"
-names(water) <- "wetlands"
-
+names(water) <- "water"
+plot(crop)
 ```
 
 Next, each raster is aggregated to the fishnet by way of a function called `aggregateRaster`. Here, the process used above to To do this, a function is created below that loops through a list of rasters, converts the _ith_ raster to points, filters only points that have value of `1` (ie. is the _ith_ land cover type), and then aggregates to the fishnet.
 
 Here is the function.
 
-```{r, warning = FALSE, message = FALSE}
-aggregateRaster <- function(inputRasterList, theFishnet) {
-  #create an empty fishnet with the same dimensions as the input fishnet
-  theseFishnets <- theFishnet %>% dplyr::select()
-  #for each raster in the raster list
-  for (i in inputRasterList) {
-  #create a variable name corresponding to the ith raster
-  varName <- names(i)
-  #convert raster to points as an sf
-    thesePoints <-
-      rasterToPoints(i) %>%
+```{r}
+aggregateRaster <- function(inputRasterNames, theFishnet) {
+  # Initialize an empty list to store results
+  aggregatedResults <- list()
+
+  # Process each raster
+  for (rasterName in inputRasterNames) {
+    # Load the raster from the global environment
+    rasterLayer <- get(rasterName)
+
+    # Convert raster to points
+    thesePoints <- rasterToPoints(rasterLayer) %>%
       as.data.frame() %>%
       st_as_sf(coords = c("x", "y"), crs = st_crs(theFishnet)) %>%
       filter(.[[1]] == 1)
-  #aggregate to the fishnet
-    thisFishnet <-
-      aggregate(thesePoints, theFishnet, length) %>%
-      mutate(!!varName := ifelse(is.na(.[[1]]),0,1))
-  #add to the larger fishnet
-    theseFishnets <- cbind(theseFishnets,thisFishnet)
+
+    # Aggregate to the fishnet
+    thisFishnet <- aggregate(thesePoints, theFishnet, length) %>%
+      mutate(!!sym(rasterName) := ifelse(is.na(.[[1]]), 0, 1))
+
+    # Store the result
+    aggregatedResults[[rasterName]] <- thisFishnet
   }
-  #output all aggregates as one large fishnet
-   return(theseFishnets)
-  }
+
+  # Combine all results
+  combinedResults <- do.call(cbind, aggregatedResults)
+
+  return(combinedResults)
+}
+
+
+# Usage
+theRasterNamesList <- c("urban", "forest", "crop", "water")
+aggregatedRasters <- aggregateRaster(theRasterNamesList, SJ_Grid)
+
+```
+
+```{r}
+SJ_Grid <- cbind(SJ_Grid, aggregatedRasters) %>% 
+  rename(urban = urban.urban, forest = forest.forest, crop = crop.crop, water = water.water) %>% 
+  select(-urban.geometry, -forest.geometry, -crop.geometry, -water.geometry)
+
+
+
+
 ```
 
 The `theRasterList` of land cover types in 2001 is created and then fed into `aggregateRaster`. The result is converted to long form grid cell centroids and plot as small multiple maps.
@@ -367,34 +412,15 @@ Note that since our land cover data is at a different resolution than our fishne
 Note also the inclusion of `st_cast` here which convert all geometries to `POLYGON`. If we create a frequency table of geometry types in `aggregatedRasters`, we will notice some and handful of `MULTIPOLYGONS`. Try `table(st_geometry_type(aggregatedRasters)`). These rogue multipolygons break the `xyC` function which is designed to find grid cell centroids. After all, there is no one centroid of several combined polygons. Thus `st_cast` ensures all geometries are just `POLYGON`.
 
 ```{r, warning = FALSE, message = FALSE}
-theRasterList <- c("urban", "forest", "crop", "water")
-
-aggregatedRasters <-
-  aggregateRaster(theRasterList, SJ_Grid) %>%
-  dplyr::select(urban,forest,crop,water) %>%
-  mutate_if(is.numeric,as.factor)
-
 # reassign cells with more than one lc value to just one based on hierarchy shown here
-aggregatedRasters <- aggregatedRasters %>%
-    mutate(crop = ifelse(developed == 0 & farm == 1, 1, 0)) %>%
-    mutate(forest = ifelse(developed == 0 & farm == 0 & forest == 1, 1, 0)) %>%
-    mutate(water = ifelse(developed == 0 & farm == 0 & forest == 0 & water == 1, 1, 0))
+SJ_Grid <- SJ_Grid %>%
+    mutate(lc_change = ifelse(lc_change >=1, 1, 0)) %>% 
+    mutate(urban = ifelse(urban >= 1, 1, 0)) %>% 
+    mutate(crop = ifelse(urban == 0 & crop >= 1, 1, 0)) %>%
+    mutate(forest = ifelse(urban == 0 & crop == 0 & forest >= 1, 1, 0)) %>%
+    mutate(water = ifelse(urban == 0 & crop == 0 & forest == 0 & water >= 1, 1, 0))
 
-aggregatedRasters %>%
-  gather(var,value,urban:water) %>%
-  st_cast("POLYGON") %>%    #just to make sure no weird geometries slipped in
-  mutate(X = xyC(.)$x,
-         Y = xyC(.)$y) %>%
-  ggplot() +
-    geom_sf(data=SJ_Grid) +
-    geom_point(aes(X,Y, colour=as.factor(value)), size =0.1) +
-    facet_wrap(~var) +
-    scale_colour_manual(values = palette2,
-                        labels=c("Other","Land Cover"),
-                        name = "") +
-    labs(title = "Land Cover Types, 2013",
-         subtitle = "As fishnet centroids") +
-   mapTheme
+plot(SJ_Grid)
 ```
 
 ## 2.3. Census Data

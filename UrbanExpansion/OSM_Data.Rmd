@@ -39,7 +39,7 @@ resolution <- 1000
 
 ```{r Extablish bbox, echo=FALSE}
 # Read the GeoJSON file
-crop <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
+crop <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 
 # Extract coordinates
 coords <- st_coordinates(crop)
@@ -192,10 +192,10 @@ plot(road_proximity, main = "Proximity to Roads")
 plot(highway_proximity, main = "Proximity to highways")
 
 # write rasters
-# writeRaster(binary_roads_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
-# writeRaster(road_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
-# writeRaster(binary_highway_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_binary.tif", format = "GTiff", overwrite = TRUE)
-# writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(binary_roads_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(road_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(binary_highway_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_binary.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/R-scripts/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
 ```
 
