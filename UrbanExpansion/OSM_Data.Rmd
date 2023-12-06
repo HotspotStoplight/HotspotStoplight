@@ -45,30 +45,6 @@ cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotSt
 # Get the bounding box
 bbox <- st_bbox(cropbox)
 
-# # Extract coordinates
-# coords <- st_coordinates(crop)
-# 
-# # If you need to format the coordinates as a vector
-# coords_vector <- as.vector(t(coords))
-# 
-# # If you need only the first and last point
-# coords <- c(coords_vector[1], coords_vector[2], coords_vector[nrow(coords) * 2 - 1], coords_vector[nrow(coords) * 2])
-# 
-# # Create a rectangle (polygon) from the coordinates
-# rectangle <- st_polygon(list(matrix(c(coords[1], coords[2], coords[1], coords[4], coords[3], coords[4], coords[3], coords[2], coords[1], coords[2]), ncol=2, byrow=TRUE)))
-# 
-# # Create an sf object and set its CRS to EPSG:4326 (WGS 84)
-# rectangle_sf <- st_sf(geometry = st_sfc(rectangle, crs = 4326))
-# 
-# # Get the bounding box
-# bbox <- st_bbox(rectangle_sf)
-# 
-# # Reproject the rectangle to EPSG:32756 (UTM Zone 56S)
-# rectangle_sf_utm <- st_transform(rectangle_sf, coordinate_system)
-# 
-# # Get the bounding box
-# bbox_utm <- st_bbox(rectangle_sf_utm)
-
 ```
 
 ## Download OSM Data
@@ -179,7 +155,7 @@ r <- rast(extent, res = resolution, crs = crs)
 # Convert the DataFrame to a SpatVector
 all_roads_vect <- vect(all_roads)
 # Rasterize the Roads
-roads_raster <- rasterize(all_roads_vect, r, fun = "count")
+roads_raster <- rasterize(all_roads_vect, r, fun = "sum")
 # Create a Binary Raster
 binary_roads_raster <- ifel(roads_raster > 0, 1, 0)
 # Calculate Proximity
@@ -187,7 +163,7 @@ road_proximity <- distance(binary_roads_raster)
 
 ### HIGHWAYS
 highway_vect <- vect(highway)
-highway_raster <- rasterize(highway_vect, r, fun = "count")
+highway_raster <- rasterize(highway_vect, r, fun = "sum")
 binary_highway_raster <- ifel(highway_raster > 0, 1, 0)
 highway_proximity <- distance(binary_highway_raster)
 
@@ -196,14 +172,12 @@ plot(road_proximity, main = "Proximity to Roads")
 plot(highway_proximity, main = "Proximity to highways")
 
 # write rasters
-# # writeRaster(binary_roads_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
+# MAC
 # writeRaster(road_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
-# # writeRaster(binary_highway_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_binary.tif", format = "GTiff", overwrite = TRUE)
 # writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
-# writeRaster(binary_roads_raster, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_binary.tif", format = "GTiff", overwrite = TRUE)
+# WINDOWS
 # writeRaster(road_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_proximity.tif", format = "GTiff", overwrite = TRUE)
-# writeRaster(binary_highway_raster, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_binary.tif", format = "GTiff", overwrite = TRUE)
 # writeRaster(highway_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
 ```
@@ -213,7 +187,7 @@ plot(highway_proximity, main = "Proximity to highways")
 end_time <- Sys.time()
 
 # Calculate and print the runtime
-runtime <- end_time - start_time
-print(paste("Total runtime:", runtime))
+runtime <- (end_time - start_time)/60
+print(paste("Total runtime (mins):", runtime))
 ```
 
