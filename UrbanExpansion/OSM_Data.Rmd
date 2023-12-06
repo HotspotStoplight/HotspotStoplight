@@ -30,7 +30,7 @@ start_time <- Sys.time()
 
 coordinate_system <- 4326
 # Target resolution in m
-resolution <- 300
+resolution <- 30
 # Conversion to degrees
 resolution <- (resolution/30)/3600
 
@@ -38,7 +38,7 @@ resolution <- (resolution/30)/3600
 
 ```{r Extablish bbox, echo=FALSE}
 # Read the GeoJSON file
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 
 # Get the bounding box
 bbox <- st_bbox(cropbox)
@@ -195,10 +195,15 @@ plot(road_proximity, main = "Proximity to Roads")
 plot(highway_proximity, main = "Proximity to highways")
 
 # write rasters
-# writeRaster(binary_roads_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
-writeRaster(road_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
-# writeRaster(binary_highway_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_binary.tif", format = "GTiff", overwrite = TRUE)
-writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
+# # writeRaster(binary_roads_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/roads_binary.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(road_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/roads_proximity.tif", format = "GTiff", overwrite = TRUE)
+# # writeRaster(binary_highway_raster, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_binary.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
+
+# writeRaster(binary_roads_raster, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_binary.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(road_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_proximity.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(binary_highway_raster, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_binary.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(highway_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
 ```
 
