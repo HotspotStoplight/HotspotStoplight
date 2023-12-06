@@ -17,6 +17,8 @@ library(sf)
 library(ggplot2)
 library(raster)
 library(dplyr)
+library(terra)
+library(tidyr)
 
 # Capture the start time
 start_time <- Sys.time()
@@ -38,7 +40,7 @@ resolution <- (resolution/30)/3600
 
 ```{r Extablish bbox, echo=FALSE}
 # Read the GeoJSON file
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 
 # Get the bounding box
 bbox <- st_bbox(cropbox)
@@ -147,10 +149,13 @@ roads_utm_5 <- st_simplify(roads_utm_5, dTolerance = resolution)
 
 # Combine roads
 all_roads <- bind_rows(roads_utm_1, roads_utm_2, roads_utm_3, roads_utm_4, roads_utm_5)
+# Keeping only osm_id and geometry columns
+all_roads <- all_roads[, c("osm_id", "geometry")]
 
 # Isolate highways
 highway <- st_simplify(roads_utm_1, dTolerance = resolution)
-
+# Keeping only osm_id and geometry columns
+highway <- highway[, c("osm_id", "geometry")]
 
 # Plot using ggplot2
 ggplot(data = all_roads) +
@@ -163,34 +168,30 @@ ggplot(data = all_roads) +
 
 ## Rasterize Roads Data
 ```{r RASTERIZE, fig.width=max}
-# Get extents of the cropbox
-cropbox_extent <- extent(cropbox)
+# Extract extent and crs from cropbox
+extent <- ext(cropbox)
+crs <- crs(cropbox)
 
-# Create an empty raster with lc_2013's extent
-r <- raster(cropbox_extent, res = resolution, crs = coordinate_system)
+# Create an empty raster based on that extent and CRS
+r <- rast(extent, res = resolution, crs = crs)
 
 ### ALL ROADS 
-# Rasterize road count
-roads_raster_utm <- rasterize(all_roads, r, field = 1, fun = "count")
-# Clone the roads_raster_utm to create binary_roads_raster
-binary_roads_raster <- roads_raster_utm
-# Replace all non-zero values with 1
-binary_roads_raster[binary_roads_raster > 0] <- 1
-# Replace all zero values with NA
-binary_roads_raster[binary_roads_raster == 0] <- NA
-# Compute road proximity
+# Convert the DataFrame to a SpatVector
+all_roads_vect <- vect(all_roads)
+# Rasterize the Roads
+roads_raster <- rasterize(all_roads_vect, r, fun = "count")
+# Create a Binary Raster
+binary_roads_raster <- ifel(roads_raster > 0, 1, 0)
+# Calculate Proximity
 road_proximity <- distance(binary_roads_raster)
 
-### HIGHWAY
-highway_raster_utm <- rasterize(highway, r, field = 1, fun = "count")
-binary_highway_raster <- highway_raster_utm
-binary_highway_raster[binary_highway_raster > 0] <- 1
-binary_highway_raster[binary_highway_raster == 0] <- NA
+### HIGHWAYS
+highway_vect <- vect(highway)
+highway_raster <- rasterize(highway_vect, r, fun = "count")
+binary_highway_raster <- ifel(highway_raster > 0, 1, 0)
 highway_proximity <- distance(binary_highway_raster)
 
 # Plot the rasters
-plot(roads_raster_utm, main = "Roads Rasterized (Count)")
-plot(binary_roads_raster, main = "Roads Rasterized (Binary)")
 plot(road_proximity, main = "Proximity to Roads")
 plot(highway_proximity, main = "Proximity to highways")
 
@@ -201,9 +202,9 @@ plot(highway_proximity, main = "Proximity to highways")
 # writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
 # writeRaster(binary_roads_raster, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_binary.tif", format = "GTiff", overwrite = TRUE)
-writeRaster(road_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_proximity.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(road_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_proximity.tif", format = "GTiff", overwrite = TRUE)
 # writeRaster(binary_highway_raster, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_binary.tif", format = "GTiff", overwrite = TRUE)
-writeRaster(highway_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_proximity.tif", format = "GTiff", overwrite = TRUE)
+# writeRaster(highway_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
 ```
 
