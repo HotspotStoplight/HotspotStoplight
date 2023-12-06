@@ -35,7 +35,7 @@ Through exploratory analysis, a geospatial predictive model is developed, traine
 # 1.2. Setup
 
 Below we load required libraries, mapTheme and plotTheme for consistent styling, and specify a palette of colors for visualizations
-```{r setup, include=FALSE}
+```{r setup}
 knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 ```
@@ -63,6 +63,8 @@ library(igraph)
 library(mapview)
 library(exactextractr)
 library(sp)
+library(ggplot2)
+library(dplyr)
 
 # Capture the start time
 start_time <- Sys.time()
@@ -143,7 +145,7 @@ rast <- function(inRaster) {
 
 coordinate_system <- 4326
 # Target resolution in m
-resolution <- 3000
+resolution <- 30
 # Conversion to degrees
 resolution <- (resolution/30)/3600
 
@@ -208,7 +210,26 @@ slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpan
 wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
 
 
+# Project the rasters
+# Check if CRS of prox_road is not the same as coordinate_system
+# prox_road <- projectRaster(prox_road, crs = coordinate_system, method = "bilinear")
+# prox_highway <- projectRaster(prox_highway, crs = coordinate_system, method = "bilinear")
+pop2010 <- projectRaster(pop2010, crs = coordinate_system, method = "bilinear")
+pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
+slope <- projectRaster(slope, crs = coordinate_system, method = "bilinear")
+wdpa <- projectRaster(wdpa, crs = coordinate_system, method = "ngb")
 
+# Clip the rasters with the polygon
+lc_2013 <- crop(lc_2013, cropbox)
+lc_2023 <- crop(lc_2023, cropbox)
+prox_road <- crop(prox_road, cropbox)
+prox_highway <- crop(prox_highway, cropbox)
+pop2010 <- crop(pop2010, cropbox)
+pop2020 <- crop(pop2020, cropbox)
+slope <- crop(slope, cropbox)
+wdpa <- crop(wdpa, cropbox)
+
+plot(wdpa)
 
 ```
 ```{r}
@@ -351,14 +372,19 @@ names(water) <- "water"
 
 # Spatial lag of development
 ```{r}
-# Replace all non-zero values with 1
-prox_urban <- urban[urban > 0] <- 1
-# Replace all zero values with NA
-prox_urban[prox_urban == 0] <- NA
-# Compute road proximity
-prox_urban <- distance(prox_urban)
-
-names(prox_urban) <- "prox_urban"
+# # Create a copy of the urban raster layer
+# prox_urban <- urban
+# 
+# # Replace all TRUE values (originally non-zero) with 1
+# prox_urban[prox_urban == TRUE] <- 1
+# 
+# # Replace all FALSE values (originally zero) with NA
+# prox_urban[prox_urban == FALSE] <- NA
+# 
+# # Compute proximity
+# prox_urban <- distance(prox_urban)
+# 
+# names(prox_urban) <- "prox_urban"
 
 ```
 
@@ -399,10 +425,26 @@ aggregateRaster <- function(inputRasterNames, theFishnet) {
 ```
 
 ```{r}
+# Capture the start time
+start_time <- Sys.time()
+```
+
+```{r}
 # Usage
-theRasterNamesList <- c("urban", "forest", "crop", "water", "prox_road", "prox_highway", "prox_urban", "pop2010", "slope", "wdpa")
+## Add "prox_urban",
+theRasterNamesList <- c("urban", "forest", "crop", "water", "prox_road", "prox_highway", "pop2010", "slope", "wdpa")
+
 aggregatedRasters <- aggregateRaster(theRasterNamesList, SJ_Grid)
 
+```
+
+```{r timer_end}
+# Capture the end time
+end_time <- Sys.time()
+
+# Calculate and print the runtime
+runtime <- end_time - start_time
+print(paste("Total runtime:", runtime))
 ```
 
 ```{r}
