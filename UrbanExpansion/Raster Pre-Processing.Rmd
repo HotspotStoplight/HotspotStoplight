@@ -37,70 +37,94 @@ resolution <- (resolution/30)/3600
 
 ```
 
-```{r Extablish bbox, echo=FALSE}
+```{r, echo=FALSE}
 # Read the GeoJSON file
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 
 # Read the rasters
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
 lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
-prox_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
-prox_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
+dist_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
+dist_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
 pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
 pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
 slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
 wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
+```
 
+
+```{r, echo=FALSE}
+# Reclassify rasters
+# Define reclassification rules
+# Format: c(start, end, newvalue)
+reclass_matrix <- matrix(c(0, 0, 1,
+                           1, 1, 1,
+                           2, 2, 2,
+                           3, 3, 3,
+                           4, 4, 4,
+                           5, 5, 1), ncol = 3, byrow = TRUE)
+
+# Apply the reclassification
+lc_2013 <- reclassify(lc_2013, reclass_matrix)
+lc_2023 <- reclassify(lc_2023, reclass_matrix)
+
+```
+
+
+```{r, echo=FALSE}
 # Project the rasters
-# Check if CRS of prox_road is not the same as coordinate_system
-# prox_road <- projectRaster(prox_road, crs = coordinate_system, method = "bilinear")
-# prox_highway <- projectRaster(prox_highway, crs = coordinate_system, method = "bilinear")
+# lc_2013 <- projectRaster(lc_2013, crs = coordinate_system, method = "ngb")
+# lc_2023 <- projectRaster(lc_2023, crs = coordinate_system, method = "ngb")
 pop2010 <- projectRaster(pop2010, crs = coordinate_system, method = "bilinear")
 pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
 slope <- projectRaster(slope, crs = coordinate_system, method = "bilinear")
 wdpa <- projectRaster(wdpa, crs = coordinate_system, method = "ngb")
-plot(wdpa)
+```
+```{r}
+# Resample each raster to match the resolution of prox_road
+lc_2013 <- resample(lc_2013, dist_road, method = "ngb")
+lc_2023 <- resample(lc_2023, dist_road, method = "ngb")
+dist_highway <- resample(dist_highway, dist_road, method = "bilinear")
+pop2010 <- resample(pop2010, dist_road, method = "bilinear")
+pop2020 <- resample(pop2020, dist_road, method = "bilinear")
+slope <- resample(slope, dist_road, method = "bilinear")
+wdpa <- resample(wdpa, dist_road, method = "ngb")
+```
+
+
+```{r, echo=FALSE}
 # Clip the rasters with the polygon
 lc_2013 <- crop(lc_2013, cropbox)
 lc_2023 <- crop(lc_2023, cropbox)
-prox_road <- crop(prox_road, cropbox)
-prox_highway <- crop(prox_highway, cropbox)
+dist_road <- crop(dist_road, cropbox)
+dist_highway <- crop(dist_highway, cropbox)
 pop2010 <- crop(pop2010, cropbox)
 pop2020 <- crop(pop2020, cropbox)
 slope <- crop(slope, cropbox)
 wdpa <- crop(wdpa, cropbox)
 
-# Project the lc rasters to the correct coordinate system
-lc_2013 <- projectRaster(lc_2013, crs = coordinate_system, method = "ngb")
-lc_2023 <- projectRaster(lc_2023, crs = coordinate_system, method = "ngb")
+```
 
-# Match the resolution
-# Use the resolution of raster2 for raster1
-res(lc_2013) <- res(prox_road)
-res(lc_2023) <- res(prox_road)
-res(prox_highway) <- res(prox_road)
-res(pop2010) <- res(prox_road)
-res(pop2020) <- res(prox_road)
-res(slope) <- res(prox_road)
-res(wdpa) <- res(prox_road)
+```{r}
+plot(lc_2013)
+plot(lc_2023)
+plot(pop2010)
+plot(pop2020)
+plot(dist_road)
+plot(dist_highway)
+plot(slope)
+plot(wdpa)
+```
 
-# Snap the pixels
-# The function projectRaster is used for both reprojecting and snapping
-lc_2013 <- projectRaster(lc_2013, prox_road, method = "ngb")
-lc_2023 <- projectRaster(lc_2023, prox_road, method = "ngb")
-prox_highway <- projectRaster(prox_highway, prox_road, method = "bilinear")
-pop2010 <- projectRaster(pop2010, prox_road, method = "bilinear")
-pop2020 <- projectRaster(pop2020, prox_road, method = "bilinear")
-slope <- projectRaster(slope, prox_road, method = "bilinear")
-wdpa <- projectRaster(wdpa, prox_road, method = "ngb")
 
+```{r, echo=FALSE}
 # Check for Uniformity of raster data
 # Check Resolution
 res(lc_2013)
 res(lc_2023)
-res(prox_road)
-res(prox_highway)
+res(dist_road)
+res(dist_highway)
 res(pop2010)
 res(pop2020)
 res(slope)
@@ -109,8 +133,8 @@ res(wdpa)
 # Check Extents
 extent(lc_2013)
 extent(lc_2023)
-extent(prox_road)
-extent(prox_highway)
+extent(dist_road)
+extent(dist_highway)
 extent(pop2010)
 extent(pop2020)
 extent(slope)
@@ -119,8 +143,8 @@ extent(wdpa)
 # Check Coordinate Systems
 crs(lc_2013)
 crs(lc_2023)
-crs(prox_road)
-crs(prox_highway)
+crs(dist_road)
+crs(dist_highway)
 crs(pop2010)
 crs(pop2020)
 crs(slope)
@@ -129,19 +153,58 @@ crs(wdpa)
 ```
 
 ```{r}
-plot(lc_2013)
+# Make RasterStacks
+LandCover <- stack(lc_2013, lc_2023)
+names(LandCover) <- c("lc2013", "lc2023")
 
+Factors <- stack(pop2010, slope, wdpa, dist_road, dist_highway)
+names(Factors) <- c("ef_01", "ef_02", "ef_03","ef_04","ef_05")
+  
+# names(SanJose)
+for(i in 1:nlayers(LandCover)) {
+  print(unique(values(LandCover[[i]])))}
+
+# Define the reclassification matrix
+reclass_matrix <- matrix(c(0, 0, 1,
+                           1, 1, 1,
+                           2, 2, 2,
+                           3, 3, 3,
+                           4, 4, 4,
+                           5, 5, 1), ncol = 3, byrow = TRUE)
+
+# Function to reclassify a raster layer
+reclassify_raster <- function(raster_layer) {
+  reclassify(raster_layer, reclass_matrix, right=NA)}
+
+# Apply the reclassification to each layer in the RasterStack
+LandCover <- stack(lapply(1:nlayers(LandCover), function(i) reclassify_raster(LandCover[[i]])))
+
+# Check the unique values again
+for(i in 1:nlayers(LandCover)) {
+  print(unique(values(LandCover[[i]])))}
+```
+
+```{r}
+# Set Directory
+setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data")
+
+save(LandCover, file = "LandCover.RData")
+save(Factors, file = "Factors.RData")
+
+```
+
+```{r}
 # Save the rasters to the directory
-setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/test")
-
-writeRaster(lc_2013, filename = "Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif", format = "GTiff")
-writeRaster(lc_2023, filename = "Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif", format = "GTiff")
-writeRaster(prox_road, filename = "roads_proximity.tif", format = "GTiff")
-writeRaster(prox_highway, filename = "highway_proximity.tif", format = "GTiff")
-writeRaster(pop2010, filename = "Pop_2010_Crop4.tif", format = "GTiff")
-writeRaster(pop2020, filename = "Pop_2020_Crop4.tif", format = "GTiff")
-writeRaster(slope, filename = "Slope.tif", format = "GTiff")
-writeRaster(wdpa, filename = "wdpa.tif", format = "GTiff")
+# setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/test")
+# 
+# writeRaster(lc_2013, filename = "Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif", format = "GTiff", overwrite=TRUE)
+# writeRaster(lc_2023, filename = "Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif", format = "GTiff", overwrite=TRUE)
+# writeRaster(dist_road, filename = "roads_proximity.tif", format = "GTiff", overwrite=TRUE)
+# writeRaster(dist_highway, filename = "highway_proximity.tif", format = "GTiff", overwrite=TRUE)
+# writeRaster(pop2010, filename = "Pop_2010_Crop4.tif", format = "GTiff", overwrite=TRUE)
+# writeRaster(pop2020, filename = "Pop_2020_Crop4.tif", format = "GTiff", overwrite=TRUE)
+# writeRaster(slope, filename = "Slope.tif", format = "GTiff", overwrite=TRUE)
+# writeRaster(wdpa, filename = "wdpa.tif", format = "GTiff", overwrite=TRUE)
 ```
 
 
