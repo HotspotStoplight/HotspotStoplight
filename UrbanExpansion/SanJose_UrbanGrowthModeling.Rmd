@@ -10,12 +10,6 @@ output:
     code_download: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
-
-rm(list=ls())
-```
-
 <style>
   .superbigimage{
       overflow-x:scroll;
@@ -41,7 +35,7 @@ Through exploratory analysis, a geospatial predictive model is developed, traine
 # 1.2. Setup
 
 Below we load required libraries, mapTheme and plotTheme for consistent styling, and specify a palette of colors for visualizations
-```{r setup, include=FALSE}
+```{r setup}
 knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 ```
@@ -69,6 +63,8 @@ library(igraph)
 library(mapview)
 library(exactextractr)
 library(sp)
+library(ggplot2)
+library(dplyr)
 
 # Capture the start time
 start_time <- Sys.time()
@@ -202,30 +198,26 @@ Note that `lc_change` is projected as `WGS 1984 PDC Mercator` and is spatially r
 
 
 ```{r raster pre-processing}
-# Read the GeoJSON file
+# Read the rasters
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
-
 lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
-
 lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
-
 prox_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
-prox_road <- projectRaster(prox_road, crs = coordinate_system, method = "average")
-
 prox_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
-prox_highway <- projectRaster(prox_highway, crs = coordinate_system, method = "average")
-
 pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
-pop2010 <- projectRaster(pop2010, crs = coordinate_system, method = "average")
-
 pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
-pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "average")
-
 slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
-slope <- projectRaster(slope, crs = coordinate_system, method = "average")
-
 wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
-wdpa <- projectRaster(wdpa, crs = coordinate_system, method = "average")
+
+
+# Project the rasters
+# Check if CRS of prox_road is not the same as coordinate_system
+# prox_road <- projectRaster(prox_road, crs = coordinate_system, method = "bilinear")
+# prox_highway <- projectRaster(prox_highway, crs = coordinate_system, method = "bilinear")
+pop2010 <- projectRaster(pop2010, crs = coordinate_system, method = "bilinear")
+pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
+slope <- projectRaster(slope, crs = coordinate_system, method = "bilinear")
+wdpa <- projectRaster(wdpa, crs = coordinate_system, method = "ngb")
 
 # Clip the rasters with the polygon
 lc_2013 <- crop(lc_2013, cropbox)
@@ -237,17 +229,7 @@ pop2020 <- crop(pop2020, cropbox)
 slope <- crop(slope, cropbox)
 wdpa <- crop(wdpa, cropbox)
 
-# Assign names to non-land cover rasters
-names(prox_road) <- "prox_road"
-names(prox_highway) <- "prox_highway"
-names(pop2010) <- "pop2010"
-names(pop2020) <- "pop2020"
-names(slope) <- "slope"
-names(wdpa) <- "wdpa"
-
-# Project the rasters to the correct coordinate system
-lc_2013 <- projectRaster(lc_2013, crs = coordinate_system, method = "ngb")
-lc_2023 <- projectRaster(lc_2023, crs = coordinate_system, method = "ngb")
+plot(wdpa)
 
 ```
 ```{r}
@@ -390,14 +372,19 @@ names(water) <- "water"
 
 # Spatial lag of development
 ```{r}
-# Replace all non-zero values with 1
-prox_urban <- urban[urban > 0] <- 1
-# Replace all zero values with NA
-prox_urban[prox_urban == 0] <- NA
-# Compute road proximity
-prox_urban <- distance(prox_urban)
-
-names(prox_urban) <- "prox_urban"
+# # Create a copy of the urban raster layer
+# prox_urban <- urban
+# 
+# # Replace all TRUE values (originally non-zero) with 1
+# prox_urban[prox_urban == TRUE] <- 1
+# 
+# # Replace all FALSE values (originally zero) with NA
+# prox_urban[prox_urban == FALSE] <- NA
+# 
+# # Compute proximity
+# prox_urban <- distance(prox_urban)
+# 
+# names(prox_urban) <- "prox_urban"
 
 ```
 
@@ -438,10 +425,26 @@ aggregateRaster <- function(inputRasterNames, theFishnet) {
 ```
 
 ```{r}
+# Capture the start time
+start_time <- Sys.time()
+```
+
+```{r}
 # Usage
-theRasterNamesList <- c("urban", "forest", "crop", "water", "prox_road", "prox_highway", "prox_urban", "pop2010", "slope", "wdpa")
+## Add "prox_urban",
+theRasterNamesList <- c("urban", "forest", "crop", "water", "prox_road", "prox_highway", "pop2010", "slope", "wdpa")
+
 aggregatedRasters <- aggregateRaster(theRasterNamesList, SJ_Grid)
 
+```
+
+```{r timer_end}
+# Capture the end time
+end_time <- Sys.time()
+
+# Calculate and print the runtime
+runtime <- end_time - start_time
+print(paste("Total runtime:", runtime))
 ```
 
 ```{r}

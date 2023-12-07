@@ -1,0 +1,157 @@
+---
+title: "OSM Data Wrangling"
+output: html_document
+date: "2023-09-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+```
+
+## R Markdown
+
+```{r}
+library(osmdata)
+library(sf)
+library(ggplot2)
+library(raster)
+library(dplyr)
+library(readr)
+
+# Capture the start time
+start_time <- Sys.time()
+```
+
+## Setting Parameters
+```{r}
+# coordinate_system <- 32756
+# 
+# resolution <- 300
+
+coordinate_system <- 4326
+# Target resolution in m
+resolution <- 30
+# Conversion to degrees
+resolution <- (resolution/30)/3600
+
+```
+
+```{r Extablish bbox, echo=FALSE}
+# Read the GeoJSON file
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
+
+# Read the rasters
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
+lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
+lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
+prox_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
+prox_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
+pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
+pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
+slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
+wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
+
+# Project the rasters
+# Check if CRS of prox_road is not the same as coordinate_system
+# prox_road <- projectRaster(prox_road, crs = coordinate_system, method = "bilinear")
+# prox_highway <- projectRaster(prox_highway, crs = coordinate_system, method = "bilinear")
+pop2010 <- projectRaster(pop2010, crs = coordinate_system, method = "bilinear")
+pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
+slope <- projectRaster(slope, crs = coordinate_system, method = "bilinear")
+wdpa <- projectRaster(wdpa, crs = coordinate_system, method = "ngb")
+plot(wdpa)
+# Clip the rasters with the polygon
+lc_2013 <- crop(lc_2013, cropbox)
+lc_2023 <- crop(lc_2023, cropbox)
+prox_road <- crop(prox_road, cropbox)
+prox_highway <- crop(prox_highway, cropbox)
+pop2010 <- crop(pop2010, cropbox)
+pop2020 <- crop(pop2020, cropbox)
+slope <- crop(slope, cropbox)
+wdpa <- crop(wdpa, cropbox)
+
+# Project the lc rasters to the correct coordinate system
+lc_2013 <- projectRaster(lc_2013, crs = coordinate_system, method = "ngb")
+lc_2023 <- projectRaster(lc_2023, crs = coordinate_system, method = "ngb")
+
+# Match the resolution
+# Use the resolution of raster2 for raster1
+res(lc_2013) <- res(prox_road)
+res(lc_2023) <- res(prox_road)
+res(prox_highway) <- res(prox_road)
+res(pop2010) <- res(prox_road)
+res(pop2020) <- res(prox_road)
+res(slope) <- res(prox_road)
+res(wdpa) <- res(prox_road)
+
+# Snap the pixels
+# The function projectRaster is used for both reprojecting and snapping
+lc_2013 <- projectRaster(lc_2013, prox_road, method = "ngb")
+lc_2023 <- projectRaster(lc_2023, prox_road, method = "ngb")
+prox_highway <- projectRaster(prox_highway, prox_road, method = "bilinear")
+pop2010 <- projectRaster(pop2010, prox_road, method = "bilinear")
+pop2020 <- projectRaster(pop2020, prox_road, method = "bilinear")
+slope <- projectRaster(slope, prox_road, method = "bilinear")
+wdpa <- projectRaster(wdpa, prox_road, method = "ngb")
+
+# Check for Uniformity of raster data
+# Check Resolution
+res(lc_2013)
+res(lc_2023)
+res(prox_road)
+res(prox_highway)
+res(pop2010)
+res(pop2020)
+res(slope)
+res(wdpa)
+
+# Check Extents
+extent(lc_2013)
+extent(lc_2023)
+extent(prox_road)
+extent(prox_highway)
+extent(pop2010)
+extent(pop2020)
+extent(slope)
+extent(wdpa)
+
+# Check Coordinate Systems
+crs(lc_2013)
+crs(lc_2023)
+crs(prox_road)
+crs(prox_highway)
+crs(pop2010)
+crs(pop2020)
+crs(slope)
+crs(wdpa)
+
+```
+
+```{r}
+plot(lc_2013)
+
+# Save the rasters to the directory
+setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/test")
+
+writeRaster(lc_2013, filename = "Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif", format = "GTiff")
+writeRaster(lc_2023, filename = "Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif", format = "GTiff")
+writeRaster(prox_road, filename = "roads_proximity.tif", format = "GTiff")
+writeRaster(prox_highway, filename = "highway_proximity.tif", format = "GTiff")
+writeRaster(pop2010, filename = "Pop_2010_Crop4.tif", format = "GTiff")
+writeRaster(pop2020, filename = "Pop_2020_Crop4.tif", format = "GTiff")
+writeRaster(slope, filename = "Slope.tif", format = "GTiff")
+writeRaster(wdpa, filename = "wdpa.tif", format = "GTiff")
+```
+
+
+
+```{r timer_end}
+# Capture the end time
+end_time <- Sys.time()
+
+# Calculate and print the runtime
+runtime <- end_time - start_time
+print(paste("Total runtime:", runtime))
+```
+
