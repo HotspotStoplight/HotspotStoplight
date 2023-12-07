@@ -129,7 +129,7 @@ all_roads <- bind_rows(roads_utm_1, roads_utm_2, roads_utm_3, roads_utm_4, roads
 all_roads <- all_roads[, c("osm_id", "geometry")]
 
 # Isolate highways
-highway <- st_simplify(roads_utm_1, dTolerance = resolution)
+highway <- bind_rows(roads_utm_1, roads_utm_2)
 # Keeping only osm_id and geometry columns
 highway <- highway[, c("osm_id", "geometry")]
 
@@ -177,8 +177,8 @@ plot(highway_proximity, main = "Proximity to highways")
 # writeRaster(highway_proximity, filename = "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/highway_proximity.tif", format = "GTiff", overwrite = TRUE)
 
 # WINDOWS
-# writeRaster(road_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_proximity.tif", format = "GTiff", overwrite = TRUE)
-# writeRaster(highway_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_proximity.tif", format = "GTiff", overwrite = TRUE)
+writeRaster(road_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\roads_proximity.tif", overwrite = TRUE)
+writeRaster(highway_proximity, filename = "C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\highway_proximity.tif", overwrite = TRUE)
 
 ```
 
