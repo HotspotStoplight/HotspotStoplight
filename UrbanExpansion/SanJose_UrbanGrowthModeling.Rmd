@@ -65,6 +65,7 @@ library(exactextractr)
 library(sp)
 library(ggplot2)
 library(dplyr)
+library(terra)
 
 # Capture the start time
 start_time <- Sys.time()
@@ -202,8 +203,8 @@ Note that `lc_change` is projected as `WGS 1984 PDC Mercator` and is spatially r
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
 lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
-prox_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
-prox_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
+# prox_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
+# prox_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
 pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
 pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
 slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
@@ -222,8 +223,8 @@ wdpa <- projectRaster(wdpa, crs = coordinate_system, method = "ngb")
 # Clip the rasters with the polygon
 lc_2013 <- crop(lc_2013, cropbox)
 lc_2023 <- crop(lc_2023, cropbox)
-prox_road <- crop(prox_road, cropbox)
-prox_highway <- crop(prox_highway, cropbox)
+# prox_road <- crop(prox_road, cropbox)
+# prox_highway <- crop(prox_highway, cropbox)
 pop2010 <- crop(pop2010, cropbox)
 pop2020 <- crop(pop2020, cropbox)
 slope <- crop(slope, cropbox)
@@ -232,6 +233,7 @@ wdpa <- crop(wdpa, cropbox)
 plot(wdpa)
 
 ```
+
 ```{r}
 # # Check alignment
 # print(extent(lc_2013))
@@ -372,6 +374,7 @@ names(water) <- "water"
 
 # Spatial lag of development
 ```{r}
+
 # # Create a copy of the urban raster layer
 # prox_urban <- urban
 # 
@@ -385,6 +388,21 @@ names(water) <- "water"
 # prox_urban <- distance(prox_urban)
 # 
 # names(prox_urban) <- "prox_urban"
+plot(prox_urban)
+# Convert urban raster to SpatRaster objects
+prox_urban <- rast(urban)
+
+# Convert to logical (TRUE for urban areas, FALSE otherwise)
+prox_urban <- prox_urban != 0  
+
+# Replace all TRUE values (originally non-zero) with 1
+prox_urban <- ifel(prox_urban, 1, NA)
+
+# Compute proximity
+prox_urban_distance <- distance(prox_urban)
+
+# Name the output raster layer
+names(prox_urban_distance) <- "prox_urban"
 
 ```
 

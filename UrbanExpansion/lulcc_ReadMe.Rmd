@@ -27,13 +27,13 @@ lulcc provides a framework for spatially explicit land use change modelling in r
 
 You can install the released version of lulcc from [CRAN](https://CRAN.R-project.org) with:
 
-``` r
+``` {r}
 install.packages("lulcc")
 ```
 
 And the development version from [GitHub](https://github.com/) with:
 
-``` r
+``` {r}
 # install.packages("devtools")
 devtools::install_github("simonmoulds/lulcc")
 ```
