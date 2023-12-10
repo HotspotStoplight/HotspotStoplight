@@ -19,8 +19,6 @@ library(raster)
 library(dplyr)
 library(readr)
 library(terra)
-library(spdep)
-
 
 # Capture the start time
 start_time <- Sys.time()
@@ -120,66 +118,18 @@ LC_Vul_Clark <- crop(LC_Vul_Clark, cropbox)
 ```
 
 ```{r}
-# plot(lc_2013)
-# plot(lc_2023)
-# plot(pop2010)
+plot(lc_2013)
+plot(lc_2023)
+plot(pop2010)
 plot(pop2020)
-# plot(dist_road)
-# plot(dist_highway)
-# plot(slope)
-# plot(wdpa)
+plot(dist_road)
+plot(dist_highway)
+plot(slope)
+plot(wdpa)
 plot(BII)
 plot(LC_Vul_Clark)
 ```
-```{r}
 
-# # Load your raster dataset
-# raster_data <- lc_2013
-# 
-# # Create a binary raster where cells with value 3 are marked
-# binary_raster <- raster_data == 3
-# 
-# # Define the neighborhood - for example, queen contiguity
-# neighbors <- cell2nb(nrow(raster_data), ncol(raster_data), type = "queen")
-# 
-# # Create a spatial weights matrix
-# weights <- nb2mat(neighbors, style = "B", zero.policy = TRUE)
-# 
-# # Calculate the spatial lag
-# spatial_lag <- lag.listw(listw = mat2listw(weights), x = as.vector(binary_raster), zero.policy = TRUE)
-# 
-# # Convert the spatial lag back to raster format
-# spatial_lag_raster <- raster(spatial_lag, template = raster_data)
-
-
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Extract extent and crs from cropbox
-# extent <- ext(cropbox)
-# crs <- crs(cropbox)
-# 
-# # Create an empty raster based on that extent and CRS
-# r <- rast(extent=extent, res=resolution, crs=crs)
-# 
-# # Convert the reclassified raster to SpatRaster using terra package
-# # Assuming lc_2013 is the original raster before reclassification
-# lc_2013_terra <- rast(lc_2013)
-# 
-# # Assuming lc_2013 contains 3 for urban areas, convert to logical raster
-# # where urban areas (value 3) are TRUE, and all others are FALSE
-# urban_areas <- ifel(lc_2013_terra == 3, 1, 0)
-# 
-# # Now calculate the distance using the integer raster
-# dist2urban2013 <- distance(urban_areas)
-# 
-# # Check the results
-# plot(urban_areas)
-
-
-# Save the spatial lag raster if needed
-# writeRaster(spatial_lag_lc_urban2013, "spatial_lag_lc_urban2013.tif", format="GTiff")
-
-
-```
 
 
 ```{r, echo=FALSE}
