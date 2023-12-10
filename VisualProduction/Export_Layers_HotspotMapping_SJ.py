@@ -183,11 +183,12 @@ print('RiverFloodRisk'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 for lyr in lyrList:   
    lyr.visible = False
 
-lyrList = m.listLayers("rf.tif_intensity")
+lyrList = m.listLayers("san_jose_flood_100m")
 for lyr in lyrList:   
    lyr.visible = True
 
-lyt.exportToPNG(docPath+"\\"+"RiverFloodRisk.PNG", transparent_background=True, resolution=300)
+lyt.exportToPNG(docPath+"\\"+"san_jose_flood_100m.PNG", transparent_background=True, resolution=300)
+
 
 
 ##_________________________________________________________________________________________________________________
