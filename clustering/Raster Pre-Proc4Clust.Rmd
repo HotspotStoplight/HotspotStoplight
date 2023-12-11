@@ -41,6 +41,7 @@ resolution <- (resolution/30)/3600
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 
 # Read the rasters
 dist_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
@@ -48,25 +49,6 @@ pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExp
 BII = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/BiodiversityIntactness_2020.tif')
 LC_Vul_Clark = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Land_Cover_Vulnerability.tif')
 ```
-
-
-```{r, echo=FALSE}
-# Reclassify rasters
-# Define reclassification rules
-# Format: c(start, end, newvalue)
-reclass_matrix <- matrix(c(0, 0, 1,
-                           1, 1, 1,
-                           2, 2, 2,
-                           3, 3, 3,
-                           4, 4, 4,
-                           5, 5, 1), ncol = 3, byrow = TRUE)
-
-# Apply the reclassification
-lc_2013 <- reclassify(lc_2013, reclass_matrix)
-lc_2023 <- reclassify(lc_2023, reclass_matrix)
-
-```
-
 
 ```{r, echo=FALSE}
 # Project the rasters
@@ -82,7 +64,6 @@ pop2020 <- resample(pop2020, dist_road, method = "bilinear")
 BII <- resample(BII, dist_road, method = "bilinear")
 LC_Vul_Clark <- resample(LC_Vul_Clark, dist_road, method = "bilinear")
 ```
-
 
 ```{r, echo=FALSE}
 # Clip the rasters with the polygon
@@ -120,6 +101,10 @@ writeRaster(BII, filename = "BII.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(LC_Vul_Clark, filename = "LC_Vul_Clark.tif", format = "GTiff", overwrite=TRUE)
 ```
 
+```{r}
+BII = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/clustering/data/BII.tif')
+plot(BII)
+```
 
 
 ```{r timer_end}
