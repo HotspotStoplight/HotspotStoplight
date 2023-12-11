@@ -23,6 +23,38 @@ library(readr)
 start_time <- Sys.time()
 ```
 
+```{r}
+# Install and load the terra package
+if (!requireNamespace("terra", quietly = TRUE)) {
+    install.packages("terra")
+}
+library(terra)
+
+# Load your raster dataset
+lc_2013 <- rast("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif")
+
+# Load the GeoJSON file as a vector layer
+cropbox <- vect("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+
+# Crop the raster using the GeoJSON extent
+lc_2013 <- crop(lc_2013, cropbox)
+
+# Create a mask for urban areas
+urban_mask <- ifel(lc_2013 == 3, 1, NA)
+
+# Calculate the distance to the nearest urban area
+distance_to_urban <- distance(urban_mask)
+
+plot(distance_to_urban)
+
+
+setwd("C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data")
+
+# Save the output
+writeRaster(distance_to_urban, "dist2urban.tif", format="GTiff")
+
+```
+
 ## Setting Parameters
 ```{r}
 # coordinate_system <- 32756

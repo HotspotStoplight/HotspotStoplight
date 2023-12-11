@@ -189,6 +189,16 @@ for lyr in lyrList:
 lyt.exportToPNG(docPath+"\\"+"RiverFloodRisk.PNG", transparent_background=True, resolution=300)
 
 
+print('UrbanHeatExtremes'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+for lyr in lyrList:   
+   lyr.visible = False
+
+lyrList = m.listLayers("Landsat9_Thermal_Extremes_SanJose.tif")
+for lyr in lyrList:   
+   lyr.visible = True
+
+lyt.exportToPNG(docPath+"\\"+"ThermalExtremes.PNG", transparent_background=True, resolution=300)
 
 ##_________________________________________________________________________________________________________________
 

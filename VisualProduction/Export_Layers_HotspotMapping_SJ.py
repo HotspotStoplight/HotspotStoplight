@@ -190,6 +190,42 @@ for lyr in lyrList:
 lyt.exportToPNG(docPath+"\\"+"san_jose_flood_100m.PNG", transparent_background=True, resolution=300)
 
 
+print('UrbanHeatExtremes'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+for lyr in lyrList:   
+   lyr.visible = False
+
+lyrList = m.listLayers("Landsat9_Thermal_Extremes_SanJose.tif")
+for lyr in lyrList:   
+   lyr.visible = True
+
+lyt.exportToPNG(docPath+"\\"+"ThermalExtremes.PNG", transparent_background=True, resolution=300)
+
+
+print('Benthic_Habitat'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+for lyr in lyrList:   
+   lyr.visible = False
+
+lyrList = m.listLayers("Benthic_Habitat_Crop1.tif")
+for lyr in lyrList:   
+   lyr.visible = True
+
+lyt.exportToPNG(docPath+"\\"+"Benthic_Habitat.PNG", transparent_background=True, resolution=300)
+
+
+print('Rivers_CR'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+for lyr in lyrList:   
+   lyr.visible = False
+
+lyrList = m.listLayers("Rivers_CR")
+for lyr in lyrList:   
+   lyr.visible = True
+
+lyt.exportToPNG(docPath+"\\"+"Rivers_CR.PNG", transparent_background=True, resolution=300)
+
+
 
 ##_________________________________________________________________________________________________________________
 
