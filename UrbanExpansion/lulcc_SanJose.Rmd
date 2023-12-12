@@ -56,7 +56,9 @@ obs <- ObsLulcRasterStack(x=LandCover,
                           pattern="lc",
                           categories=c(1,2,3,4),
                           # labels=c("Forest","Other","Built","Water"),
-                          labels=c("Built","Other","Forest","Water"),
+                          # labels=c("Other","Built","Forest","Water"),
+                          # labels=c("Built","Other","Forest","Water"),
+                          labels=c("Other","Forest","Built","Water"),
                           t=c(0,10))
 ```
 
@@ -102,13 +104,12 @@ Predictive models are represented by the `PredictiveModelList` class. For compar
 
 ```{r Modelling}
 # fit models (note that a predictive model is required for each land use category)
-# Factors <- stack(pop2010, slope, wdpa, dist_road, dist_highway)
+# Factors <- stack(pop2010, slope, dist_urban, dist_road, dist_highway)
 
-
-forms <- list(Built~ef_01+ef_02+ef_04+ef_05,
-              Forest~ef_01,
-              Other~ef_01+ef_02,
-              Water~ef_02)
+forms <- list(Built~ef_01+ef_02+ef_03+ef_04+ef_05,
+              Forest~ef_01+ef_02+ef_03+ef_04+ef_05,
+              Other~ef_01+ef_02+ef_03+ef_04+ef_05,
+              Water~ef_01+ef_02+ef_03+ef_04+ef_05) 
 # 
 # generalized linear model models
 glm.models <- glmModels(formula=forms,
@@ -128,7 +129,7 @@ rf.models <- randomForestModels(formula=forms,
 
 We can then use the fitted models to predict over the full data set and produce the probability surfaces for each fitted model:
 
-```{r ProbabilityMaps, echo = TRUE}
+```{r ProbabilityMaps, echo = TRUE, fig.width=10}
 all.data <- as.data.frame(x=ef, obs=obs, cells=part[["all"]])
 
 # GLM

@@ -48,13 +48,17 @@ dist_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotSt
 pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
 BII = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/BiodiversityIntactness_2020.tif')
 LC_Vul_Clark = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Land_Cover_Vulnerability.tif')
+dist_urban = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/dist2urban.tif')
+
 ```
 
 ```{r, echo=FALSE}
 # Project the rasters
 pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
-BII <- projectRaster(BII, crs = coordinate_system, method = "bilinear")
+# BII <- projectRaster(BII, crs = coordinate_system, method = "bilinear")
 LC_Vul_Clark <- projectRaster(LC_Vul_Clark, crs = coordinate_system, method = "bilinear")
+# dist_road <- projectRaster(dist_road, crs = coordinate_system, method = "bilinear")
+# dist_urban <- projectRaster(dist_urban, crs = coordinate_system, method = "bilinear")
 
 ```
 
@@ -63,6 +67,7 @@ LC_Vul_Clark <- projectRaster(LC_Vul_Clark, crs = coordinate_system, method = "b
 pop2020 <- resample(pop2020, dist_road, method = "bilinear")
 BII <- resample(BII, dist_road, method = "bilinear")
 LC_Vul_Clark <- resample(LC_Vul_Clark, dist_road, method = "bilinear")
+dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
 ```
 
 ```{r, echo=FALSE}
@@ -70,12 +75,16 @@ LC_Vul_Clark <- resample(LC_Vul_Clark, dist_road, method = "bilinear")
 pop2020 <- crop(pop2020, cropbox)
 BII <- crop(BII, cropbox)
 LC_Vul_Clark <- crop(LC_Vul_Clark, cropbox)
+dist_road <- crop(dist_road, cropbox)
+dist_urban <- crop(dist_urban, cropbox)
 ```
 
 ```{r}
 plot(pop2020)
 plot(BII)
 plot(LC_Vul_Clark)
+plot(dist_road)
+plot(dist_urban)
 ```
 
 ```{r, echo=FALSE}
@@ -95,16 +104,13 @@ plot(LC_Vul_Clark)
 # Save the rasters to the directory
 setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/clustering/data")
 
-
 writeRaster(pop2020, filename = "Pop_2020.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(BII, filename = "BII.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(LC_Vul_Clark, filename = "LC_Vul_Clark.tif", format = "GTiff", overwrite=TRUE)
+writeRaster(dist_road, filename = "dist_road.tif", format = "GTiff", overwrite=TRUE)
+writeRaster(dist_urban, filename = "dist_urban.tif", format = "GTiff", overwrite=TRUE)
 ```
 
-```{r}
-BII = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/clustering/data/BII.tif')
-plot(BII)
-```
 
 
 ```{r timer_end}

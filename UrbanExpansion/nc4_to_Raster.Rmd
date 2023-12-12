@@ -38,19 +38,37 @@ resolution <- (resolution/30)/3600
 ```
 
 ```{r, echo=FALSE}
-# Read the GeoJSON file
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
+# Load required libraries
+library(raster)
+library(ncdf4)
 
-# Read the rasters
-lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
-lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
-dist_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
-dist_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
-pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
-pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
-slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
-wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
+# Specify the path to your NC4 file
+nc4_file_path <- "path/to/your/file.nc4"
+
+# Open the NC4 file
+nc_data <- nc_open(nc4_file_path)
+
+# Print the names of variables in the NC4 file to identify which one you want to convert
+print(nc_var_get_names(nc_data))
+
+# Assuming the variable you want to convert is named 'your_variable_name'
+variable_name <- 'your_variable_name'
+
+# Read the variable data
+variable_data <- raster(ncvar_get(nc_data, variable_name))
+
+# If the NC4 file contains lat-lon information, set the projection
+crs(variable_data) <- CRS("+proj=longlat +datum=WGS84")
+  
+# Set the filename for the output raster
+output_raster_filename <- "output_raster.tif"
+
+# Write the raster to a file
+writeRaster(variable_data, filename=output_raster_filename, format="GTiff", overwrite=TRUE)
+
+# Close the NC4 file
+nc_close(nc_data)
+
 ```
 
 
