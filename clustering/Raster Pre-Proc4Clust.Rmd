@@ -39,9 +39,9 @@ resolution <- (resolution/30)/3600
 ```{r, echo=FALSE}
 # Read the GeoJSON file
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 
 # Read the rasters
 dist_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
@@ -49,6 +49,7 @@ pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExp
 BII = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/BiodiversityIntactness_2020.tif')
 LC_Vul_Clark = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Land_Cover_Vulnerability.tif')
 dist_urban = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/dist2urban.tif')
+slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
 
 ```
 
@@ -59,6 +60,7 @@ pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
 LC_Vul_Clark <- projectRaster(LC_Vul_Clark, crs = coordinate_system, method = "bilinear")
 # dist_road <- projectRaster(dist_road, crs = coordinate_system, method = "bilinear")
 # dist_urban <- projectRaster(dist_urban, crs = coordinate_system, method = "bilinear")
+# slope <- projectRaster(slope, crs = coordinate_system, method = "bilinear")
 
 ```
 
@@ -68,6 +70,7 @@ pop2020 <- resample(pop2020, dist_road, method = "bilinear")
 BII <- resample(BII, dist_road, method = "bilinear")
 LC_Vul_Clark <- resample(LC_Vul_Clark, dist_road, method = "bilinear")
 dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
+slope <- resample(slope, dist_road, method = "bilinear")
 ```
 
 ```{r, echo=FALSE}
@@ -77,6 +80,7 @@ BII <- crop(BII, cropbox)
 LC_Vul_Clark <- crop(LC_Vul_Clark, cropbox)
 dist_road <- crop(dist_road, cropbox)
 dist_urban <- crop(dist_urban, cropbox)
+slope <- crop(slope, cropbox)
 ```
 
 ```{r}
@@ -85,6 +89,7 @@ plot(BII)
 plot(LC_Vul_Clark)
 plot(dist_road)
 plot(dist_urban)
+plot(slope)
 ```
 
 ```{r, echo=FALSE}
@@ -109,6 +114,7 @@ writeRaster(BII, filename = "BII.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(LC_Vul_Clark, filename = "LC_Vul_Clark.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(dist_road, filename = "dist_road.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(dist_urban, filename = "dist_urban.tif", format = "GTiff", overwrite=TRUE)
+writeRaster(slope, filename = "slope.tif", format = "GTiff", overwrite=TRUE)
 ```
 
 

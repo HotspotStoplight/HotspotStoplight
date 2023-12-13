@@ -19,6 +19,8 @@ library(raster)
 library(dplyr)
 library(readr)
 library(terra)
+library(corrplot)
+
 
 # Capture the start time
 start_time <- Sys.time()
@@ -40,18 +42,68 @@ resolution <- (resolution/30)/3600
 
 ```{r, echo=FALSE}
 # Read the GeoJSON file
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop2.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 
 # Read the rasters
 lc_2013 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat8_2013_2014_CostaRica_SanJose.tif')
 lc_2023 = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/Land%20Cover%20Classification%20for%20San%20Jose%20CR%2C%202013-2014%2C%202017-2018%2C%202022-2023/Landcover_Landsat9_2022_2023_CostaRica_SanJose.tif')
+
+# DISTANCE TO ROADS
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/roads_proximity.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+dist_road <- raster(temp)
+
+# DISTANCE TO HIGHWAYS
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/highway_proximity.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+dist_highway <- raster(temp)
+
+# POPULATION 2010
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Pop_2010_Crop4.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+pop2010 <- raster(temp)
+
+# POPULATION 2020
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Pop_2020_Crop4.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+pop2020 <- raster(temp)
+
+# SLOPE
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Slope.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+slope <- raster(temp)
+
+# DISTANCE TO URBAN LAND COVER
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/dist2urban.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+wdpa <- raster(temp)
+
+# WDPA
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/wdpa.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+wdpa <- raster(temp)
+
+# IUCN SPECIES
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/clustering/data/IUCN_Species.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+IUCN_Species <- raster(temp)
+
+
 dist_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
 dist_highway = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/highway_proximity.tif')
-pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
-pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
-slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
-wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
+# pop2010 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2010_Crop4.tif')
+# pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
+# slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
+# wdpa = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/wdpa.tif')
 BII = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/BiodiversityIntactness_2020.tif')
 LC_Vul_Clark = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Land_Cover_Vulnerability.tif')
 dist_urban = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/dist2urban.tif')
@@ -61,6 +113,8 @@ dist_urban = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/Urban
 ```{r, echo=FALSE}
 # Project the rasters
 pop2010 <- projectRaster(pop2010, crs = coordinate_system, method = "bilinear")
+pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
+LC_Vul_Clark <- projectRaster(LC_Vul_Clark, crs = coordinate_system, method = "bilinear")
 
 ```
 
@@ -84,6 +138,8 @@ dist_highway <- crop(dist_highway, cropbox)
 pop2010 <- crop(pop2010, cropbox)
 slope <- crop(slope, cropbox)
 dist_urban <- crop(dist_urban, cropbox)
+BII <- crop(BII, cropbox)
+LC_Vul_Clark <- crop(LC_Vul_Clark, cropbox)
 ```
 
 ```{r}
@@ -95,12 +151,17 @@ plot(dist_road)
 plot(dist_highway)
 plot(slope)
 plot(wdpa)
+plot(dist_urban)
 plot(BII)
 plot(LC_Vul_Clark)
-plot(dist_urban)
 ```
+```{r}
+# Save the rasters to the directory
+setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/")
 
-
+writeRaster(BII, filename = "BiodiversityIntactness_2020.tif", format = "GTiff", overwrite=TRUE)
+writeRaster(LC_Vul_Clark, filename = "Land_Cover_Vulnerability.tif", format = "GTiff", overwrite=TRUE)
+```
 
 ```{r, echo=FALSE}
 # # Check for Uniformity of raster data

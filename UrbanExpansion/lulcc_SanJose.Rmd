@@ -46,8 +46,26 @@ Land use change modelling requires a large amount of input data. The most import
 
 ```{r LoadAndPrep}
 library(lulcc)
-load("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/LandCover.Rdata")
-load("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Factors.Rdata")
+# load("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/LandCover.Rdata")
+# load("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Factors.Rdata")
+
+# URL of the raw .RData file
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/LandCover.RData"
+# Temporary file to store the downloaded data
+temp <- tempfile()
+# Download the file
+download.file(url, temp, method = "auto")
+# Load the data
+load(temp)
+# Clean up by removing the temporary file
+unlink(temp)
+
+# Factors
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Factors.RData"
+temp <- tempfile()
+download.file(url, temp, method = "auto")
+load(temp)
+unlink(temp)
 
 data(LandCover)
 data(Factors)
@@ -141,6 +159,18 @@ probmaps <- SpatialPointsDataFrame(points, probmaps)
 probmaps <- rasterize(x=probmaps, y=obs[[1]],
                       field=names(probmaps))
 rasterVis::levelplot(probmaps)
+```
+```{r}
+library(raster)
+library(rasterVis)
+
+# Set Working Directory
+setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data")
+
+# Exporting the raster as TIFF
+output_filename <- "landcover_probmaps2023.tif"
+writeRaster(probmaps, filename=output_filename, format="GTiff", overwrite=TRUE)
+
 ```
 
 Model performance is assessed using the receiver operator characteristic provided by the [ROCR](http://cran.r-project.org/web/packages/ROCR/index.html) package. lulcc includes classes `Prediction` and `Performance` which extend the native ROCR classes to contain multiple `prediction` and `performance` objects. The procedure to obtain these objects and assess performance is as follows:
