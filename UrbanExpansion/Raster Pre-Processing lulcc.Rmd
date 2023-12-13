@@ -132,7 +132,6 @@ plot(UrbanProbability)
 # Project the rasters
 pop2010 <- projectRaster(pop2010, crs = coordinate_system, method = "bilinear")
 pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
-LC_Vul_Clark <- projectRaster(LC_Vul_Clark, crs = coordinate_system, method = "bilinear")
 
 ```
 

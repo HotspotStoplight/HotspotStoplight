@@ -139,9 +139,11 @@ rpart.models <- rpartModels(formula=forms,
                             data=train.data,
                             obs=obs)
 # random forest models (WARNING: takes a long time!)
-rf.models <- randomForestModels(formula=forms,
-                                data=train.data,
-                                obs=obs)
+# rf.models <- randomForestModels(formula=forms,
+#                                 data=train.data,
+#                                 obs=obs)
+
+rf.models <- randomForestModels(formula=forms, data=train.data, obs=obs, na.action=na.omit)
 
 ```
 
