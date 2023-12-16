@@ -29,12 +29,10 @@ start_time <- Sys.time()
 ## Setting Parameters
 ```{r}
 # coordinate_system <- 32756
-# 
-# resolution <- 300
 
 coordinate_system <- 4326
 # Target resolution in m
-resolution <- 30
+resolution <- 300
 # Conversion to degrees
 resolution <- (resolution/30)/3600
 
@@ -43,7 +41,7 @@ resolution <- (resolution/30)/3600
 ```{r, echo=FALSE}
 # Read the GeoJSON file
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop2.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 
 # LAND COVER 2013
@@ -100,12 +98,6 @@ temp <- tempfile(fileext = ".tif")
 download.file(url, temp, method = "auto")
 wdpa <- raster(temp)
 
-# IUCN SPECIES
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/clustering/data/IUCN_Species.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-IUCN_Species <- raster(temp)
-
 # BIODIVERSITY INTACTNESS INDEX
 url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/BiodiversityIntactnessIndex_2020.tif"
 temp <- tempfile(fileext = ".tif")
@@ -118,13 +110,6 @@ temp <- tempfile(fileext = ".tif")
 download.file(url, temp, method = "auto")
 LC_Vul_Clark <- raster(temp)
 
-# URBAN LAND COVER PROBABILITY
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/landcover_probmaps2023.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-UrbanProbability <- raster(temp)
-
-plot(UrbanProbability)
 ```
 
 
@@ -139,10 +124,11 @@ pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
 # Resample each raster to match the resolution of prox_road
 lc_2013 <- resample(lc_2013, dist_road, method = "ngb")
 lc_2023 <- resample(lc_2023, dist_road, method = "ngb")
-dist_highway <- resample(dist_highway, dist_road, method = "bilinear")
 pop2010 <- resample(pop2010, dist_road, method = "bilinear")
 slope <- resample(slope, dist_road, method = "bilinear")
 dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
+dist_highway <- resample(dist_highway, dist_road, method = "bilinear")
+
 ```
 
 
@@ -172,26 +158,18 @@ plot(dist_urban)
 plot(BII)
 plot(LC_Vul_Clark)
 ```
-```{r}
-# Save the rasters to the directory
-setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/")
-
-writeRaster(BII, filename = "BiodiversityIntactnessIndex_2020.tif", format = "GTiff", overwrite=TRUE)
-writeRaster(LC_Vul_Clark, filename = "Land_Cover_Change_Probs.tif", format = "GTiff", overwrite=TRUE)
-
-```
 
 ```{r, echo=FALSE}
 # # Check for Uniformity of raster data
 # # Check Resolution
-# res(lc_2013)
-# res(lc_2023)
-# res(dist_road)
-# res(dist_highway)
-# res(pop2010)
-# res(pop2020)
-# res(slope)
-# res(wdpa)
+res(lc_2013)
+res(lc_2023)
+res(dist_road)
+res(dist_highway)
+res(pop2010)
+res(pop2020)
+res(slope)
+res(wdpa)
 # 
 # # Check Extents
 # extent(lc_2013)
@@ -206,7 +184,7 @@ writeRaster(LC_Vul_Clark, filename = "Land_Cover_Change_Probs.tif", format = "GT
 # # Check Coordinate Systems
 # crs(lc_2013)
 # crs(lc_2023)
-# crs(dist_road)
+crs(dist_road)
 # crs(dist_highway)
 # crs(pop2010)
 # crs(pop2020)
@@ -214,6 +192,28 @@ writeRaster(LC_Vul_Clark, filename = "Land_Cover_Change_Probs.tif", format = "GT
 # crs(wdpa)
 
 ```
+```{r}
+res(resolution_raster)
+```
+
+```{r}
+## Optional Downsampling
+resolution_raster <- raster(res = resolution) # Create a raster with the desired resolution
+extent(resolution_raster) <- extent(dist_road) # Set to the extent of your original raster
+crs(resolution_raster) <- crs(dist_road) # Set the CRS of the new raster to match the CRS of the original raster
+
+# Perform the resampling
+dist_road_resampled <- resample(dist_road, resolution_raster, method = "bilinear")
+
+# Resample each raster to match the resolution of prox_road
+lc_2013 <- resample(lc_2013, dist_road, method = "ngb")
+lc_2023 <- resample(lc_2023, dist_road, method = "ngb")
+pop2010 <- resample(pop2010, dist_road, method = "bilinear")
+slope <- resample(slope, dist_road, method = "bilinear")
+dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
+dist_highway <- resample(dist_highway, dist_road, method = "bilinear")
+```
+
 
 ```{r}
 # Make RasterStacks
@@ -264,5 +264,9 @@ end_time <- Sys.time()
 # Calculate and print the runtime
 runtime <- end_time - start_time
 print(paste("Total runtime:", runtime))
+```
+
+```{r}
+res(dist_highway)
 ```
 

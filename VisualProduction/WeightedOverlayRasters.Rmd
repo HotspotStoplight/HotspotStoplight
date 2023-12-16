@@ -37,19 +37,62 @@ resolution <- (resolution/30)/3600
 ```
 
 ```{r, echo=FALSE}
-# Read the GeoJSON file
+# Read the Boundary file
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 
-# Read the rasters
-dist_road = raster('https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/UrbanExpansion/data/roads_proximity.tif')
-pop2020 = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Pop_2020_Crop4.tif')
-BII = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/BiodiversityIntactness_2020.tif')
-LC_Vul_Clark = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Land_Cover_Vulnerability.tif')
-dist_urban = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/dist2urban.tif')
-slope = raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Slope.tif')
+
+# LAND COVER CHANGE PROBABILITY
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Land_Cover_Change_Probs.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+LC_Vul_Clark <- raster(temp)
+
+# BIODIVERSITY INTACTNESS INDEX
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/BiodiversityIntactnessIndex_2020.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+BII <- raster(temp)
+
+# CLIMATE RISK 
+Climate_Hazards = raster('/Users/oliveratwood/Box Sync/Hotspot Stoplight Data/san_jose_flood_probabilities.tif')
+
+# POPULATION 2020
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Pop_2020_Crop4.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+pop2020 <- raster(temp)
+
+# URBAN PROBABILITY
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/landcover_probmaps2023.tif"
+temp <- tempfile(fileext = ".tif")
+download.file(url, temp, method = "auto")
+UrbanProbability <- raster(temp)
+
+
+# LC_Vul_Clark
+# BII
+# Climate_Hazards
+# pop2020
+# UrbanProbability
+
+```
+```{r}
+plot(UrbanProbability)
+# Assuming UrbanProbability is already loaded as a multi-band raster
+numBands <- nlayers(UrbanProbability)
+print(paste("Number of bands:", numBands))
+
+# Loop through each band and plot
+for (i in 1:numBands) {
+  # Select individual band
+  singleBand <- raster(UrbanProbability, layer = i)
+  
+  # Plot
+  plot(singleBand, main = paste("Band", i))
+}
 
 ```
 

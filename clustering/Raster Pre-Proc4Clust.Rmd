@@ -90,11 +90,6 @@ LC_Vul_Clark <- raster(temp)
 ```{r, echo=FALSE}
 # Project the rasters
 pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
-# BII <- projectRaster(BII, crs = coordinate_system, method = "bilinear")
-LC_Vul_Clark <- projectRaster(LC_Vul_Clark, crs = coordinate_system, method = "bilinear")
-# dist_road <- projectRaster(dist_road, crs = coordinate_system, method = "bilinear")
-# dist_urban <- projectRaster(dist_urban, crs = coordinate_system, method = "bilinear")
-# slope <- projectRaster(slope, crs = coordinate_system, method = "bilinear")
 
 ```
 
@@ -105,6 +100,8 @@ BII <- resample(BII, dist_road, method = "bilinear")
 LC_Vul_Clark <- resample(LC_Vul_Clark, dist_road, method = "bilinear")
 dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
 slope <- resample(slope, dist_road, method = "bilinear")
+IUCN_Species <- resample(IUCN_Species, dist_road, method = "bilinear")
+
 ```
 
 ```{r, echo=FALSE}
@@ -115,6 +112,7 @@ LC_Vul_Clark <- crop(LC_Vul_Clark, cropbox)
 dist_road <- crop(dist_road, cropbox)
 dist_urban <- crop(dist_urban, cropbox)
 slope <- crop(slope, cropbox)
+IUCN_Species <- crop(IUCN_Species, cropbox)
 ```
 
 ```{r}
@@ -124,6 +122,7 @@ plot(LC_Vul_Clark)
 plot(dist_road)
 plot(dist_urban)
 plot(slope)
+plot(IUCN_Species)
 ```
 
 ```{r, echo=FALSE}
@@ -149,6 +148,7 @@ writeRaster(LC_Vul_Clark, filename = "LC_Vul_Clark.tif", format = "GTiff", overw
 writeRaster(dist_road, filename = "dist_road.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(dist_urban, filename = "dist_urban.tif", format = "GTiff", overwrite=TRUE)
 writeRaster(slope, filename = "slope.tif", format = "GTiff", overwrite=TRUE)
+writeRaster(IUCN_Species, filename = "IUCN_Species.tif", format = "GTiff", overwrite=TRUE)
 ```
 
 
