@@ -226,6 +226,18 @@ for lyr in lyrList:
 lyt.exportToPNG(docPath+"\\"+"Rivers_CR.PNG", transparent_background=True, resolution=300)
 
 
+print('Stoplight'+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+
+for lyr in lyrList:   
+   lyr.visible = False
+
+lyrList = m.listLayers("Hotspot_Stoplight.tif")
+for lyr in lyrList:   
+   lyr.visible = True
+
+lyt.exportToPNG(docPath+"\\"+"Stoplight.PNG", transparent_background=True, resolution=300)
+
+
 
 ##_________________________________________________________________________________________________________________
 
