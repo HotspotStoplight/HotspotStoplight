@@ -38,7 +38,7 @@ resolution <- (resolution/30)/3600
 ```{r, echo=FALSE}
 # Read the Boundary file
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
-# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
 
@@ -68,8 +68,8 @@ pop2020 <- raster(temp)
 UrbanProbability <- raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Built.tif')
 
 
-
 ```
+
 ```{r}
 # List of raster variables
 rasters = list(LCC_Probability, BII, Climate_Hazards, pop2020, UrbanProbability)

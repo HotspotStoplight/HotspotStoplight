@@ -32,7 +32,7 @@ start_time <- Sys.time()
 
 coordinate_system <- 4326
 # Target resolution in m
-resolution <- 300
+resolution <- 30
 # Conversion to degrees
 resolution <- (resolution/30)/3600
 
@@ -40,8 +40,9 @@ resolution <- (resolution/30)/3600
 
 ```{r, echo=FALSE}
 # Read the GeoJSON file
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop2.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop2.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5a.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 
 # LAND COVER 2013
@@ -262,9 +263,5 @@ end_time <- Sys.time()
 # Calculate and print the runtime
 runtime <- end_time - start_time
 print(paste("Total runtime:", runtime))
-```
-
-```{r}
-res(dist_highway)
 ```
 
