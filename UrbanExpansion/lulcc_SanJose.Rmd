@@ -46,29 +46,34 @@ Land use change modelling requires a large amount of input data. The most import
 
 ```{r LoadAndPrep}
 library(lulcc)
+#  on mac
 # load("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/LandCover.Rdata")
 # load("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Factors.Rdata")
 
-# URL of the raw .RData file
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/LandCover.RData"
-# Temporary file to store the downloaded data
-temp <- tempfile()
-# Download the file
-download.file(url, temp, method = "auto")
-# Load the data
-load(temp)
-# Clean up by removing the temporary file
-unlink(temp)
+# on windows
+load("C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\LandCover.Rdata")
+load("C:\\Users\\olive\\Documents\\GitHub\\HotspotStoplight\\UrbanExpansion\\data\\Factors.Rdata")
 
-# Factors
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Factors.RData"
-temp <- tempfile()
-download.file(url, temp, method = "auto")
-load(temp)
-unlink(temp)
-
-data(LandCover)
-data(Factors)
+# # URL of the raw .RData file
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/LandCover.RData"
+# # Temporary file to store the downloaded data
+# temp <- tempfile()
+# # Download the file
+# download.file(url, temp, method = "auto")
+# # Load the data
+# load(temp)
+# # Clean up by removing the temporary file
+# unlink(temp)
+# 
+# # Factors
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Factors.RData"
+# temp <- tempfile()
+# download.file(url, temp, method = "auto")
+# load(temp)
+# unlink(temp)
+# 
+# data(LandCover)
+# data(Factors)
 
 obs <- ObsLulcRasterStack(x=LandCover,
                           pattern="lc",
@@ -83,11 +88,11 @@ obs <- ObsLulcRasterStack(x=LandCover,
 A useful starting point in land use change modelling is to obtain a transition matrix for two observed land use maps to identify the main transitions. This can be achieved with the `crossTabulate` function:
 
 ```{r CrossTab, echo=TRUE}
-# obtain a transition matrix from land use maps for 1985 and 1991
+# obtain a transition matrix from land use maps for 2013 and 2023
 crossTabulate(obs, times=c(0,10))
 ```
 
-For the Plum Island Ecosystem site this reveals that the main transition was from forest to built areas.
+For the study area this reveals that the main transition was from ____ to ____ areas.
 
 The next stage is to relate observed land use or observed land use transitions to spatially explicit biophysical or socioeconomic explanatory variables. These are loaded as follows:
 
@@ -124,13 +129,11 @@ Predictive models are represented by the `PredictiveModelList` class. For compar
 # fit models (note that a predictive model is required for each land use category)
 # Factors <- stack(pop2010, slope, dist_urban, dist_road, dist_highway)
 
-# forms <- list(Built~ef_01+ef_02+ef_03+ef_04+ef_05,
-#               Forest~ef_01+ef_02+ef_03+ef_04+ef_05,
-#               Other~ef_01+ef_02+ef_03+ef_04+ef_05,
-#               Water~ef_01+ef_02+ef_03+ef_04+ef_05) 
+forms <- list(Built~ef_01+ef_02+ef_03+ef_04+ef_05,
+              Forest~ef_01+ef_02+ef_03+ef_04+ef_05,
+              Other~ef_01+ef_02+ef_03+ef_04+ef_05,
+              Water~ef_01+ef_02+ef_03+ef_04+ef_05)
 
-forms <- list(Built~ef_01+ef_02+ef_03+ef_04+ef_05) 
-# 
 # generalized linear model models
 glm.models <- glmModels(formula=forms,
                         family=binomial,
@@ -141,10 +144,6 @@ rpart.models <- rpartModels(formula=forms,
                             data=train.data,
                             obs=obs)
 # random forest models (WARNING: takes a long time!)
-# rf.models <- randomForestModels(formula=forms,
-#                                 data=train.data,
-#                                 obs=obs)
-
 rf.models <- randomForestModels(formula=forms, data=train.data, obs=obs, na.action=na.omit)
 
 ```
