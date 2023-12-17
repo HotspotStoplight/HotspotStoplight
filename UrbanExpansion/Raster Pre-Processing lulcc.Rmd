@@ -41,8 +41,8 @@ resolution <- (resolution/30)/3600
 ```{r, echo=FALSE}
 # Read the GeoJSON file
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop2.geojson")
-# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 
 # LAND COVER 2013
 url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Landcover_2013.tif"
@@ -193,25 +193,23 @@ crs(dist_road)
 
 ```
 ```{r}
-res(resolution_raster)
+# res(resolution_raster)
 ```
 
 ```{r}
-## Optional Downsampling
-resolution_raster <- raster(res = resolution) # Create a raster with the desired resolution
-extent(resolution_raster) <- extent(dist_road) # Set to the extent of your original raster
-crs(resolution_raster) <- crs(dist_road) # Set the CRS of the new raster to match the CRS of the original raster
-
-# Perform the resampling
-dist_road_resampled <- resample(dist_road, resolution_raster, method = "bilinear")
-
-# Resample each raster to match the resolution of prox_road
-lc_2013 <- resample(lc_2013, dist_road, method = "ngb")
-lc_2023 <- resample(lc_2023, dist_road, method = "ngb")
-pop2010 <- resample(pop2010, dist_road, method = "bilinear")
-slope <- resample(slope, dist_road, method = "bilinear")
-dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
-dist_highway <- resample(dist_highway, dist_road, method = "bilinear")
+# ## Optional Downsampling
+# resolution_raster <- raster(res = resolution) # Create a raster with the desired resolution
+# extent(resolution_raster) <- extent(dist_road) # Set to the extent of your original raster
+# crs(resolution_raster) <- crs(dist_road) # Set the CRS of the new raster to match the CRS of the original raster
+# dist_road_resampled <- resample(dist_road, resolution_raster, method = "bilinear") # Perform the resampling
+# 
+# # Resample each raster to match the resolution of prox_road
+# lc_2013 <- resample(lc_2013, dist_road, method = "ngb")
+# lc_2023 <- resample(lc_2023, dist_road, method = "ngb")
+# pop2010 <- resample(pop2010, dist_road, method = "bilinear")
+# slope <- resample(slope, dist_road, method = "bilinear")
+# dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
+# dist_highway <- resample(dist_highway, dist_road, method = "bilinear")
 ```
 
 
@@ -249,7 +247,7 @@ for(i in 1:nlayers(LandCover)) {
 
 ```{r}
 # Set Directory
-setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data")
+setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/cropped")
 
 save(LandCover, file = "LandCover.RData")
 save(Factors, file = "Factors.RData")
