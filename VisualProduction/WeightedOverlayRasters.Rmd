@@ -12,7 +12,6 @@ rm(list=ls())
 ## R Markdown
 
 ```{r}
-library(osmdata)
 library(sf)
 library(ggplot2)
 library(raster)
@@ -38,7 +37,7 @@ resolution <- (resolution/30)/3600
 
 ```{r, echo=FALSE}
 # Read the Boundary file
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
@@ -48,7 +47,7 @@ cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotSt
 url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Land_Cover_Change_Probs.tif"
 temp <- tempfile(fileext = ".tif")
 download.file(url, temp, method = "auto")
-LC_Vul_Clark <- raster(temp)
+LCC_Probability <- raster(temp)
 
 # BIODIVERSITY INTACTNESS INDEX
 url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/BiodiversityIntactnessIndex_2020.tif"
@@ -66,100 +65,244 @@ download.file(url, temp, method = "auto")
 pop2020 <- raster(temp)
 
 # URBAN PROBABILITY
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/landcover_probmaps2023.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-UrbanProbability <- raster(temp)
+UrbanProbability <- raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Built.tif')
 
 
-# LC_Vul_Clark
-# BII
-# Climate_Hazards
-# pop2020
-# UrbanProbability
 
 ```
 ```{r}
-plot(UrbanProbability)
-# Assuming UrbanProbability is already loaded as a multi-band raster
-numBands <- nlayers(UrbanProbability)
-print(paste("Number of bands:", numBands))
+# List of raster variables
+rasters = list(LCC_Probability, BII, Climate_Hazards, pop2020, UrbanProbability)
 
-# Loop through each band and plot
-for (i in 1:numBands) {
-  # Select individual band
-  singleBand <- raster(UrbanProbability, layer = i)
-  
-  # Plot
-  plot(singleBand, main = paste("Band", i))
+# Function to check if all elements in a list are identical
+are_identical <- function(items) {
+  for (i in 2:length(items)) {
+    if (!identical(items[[1]], items[[i]])) {
+      return(FALSE)
+    }
+  }
+  return(TRUE)
+}
+
+# Check Resolution
+resolutions <- lapply(rasters, res)
+if (are_identical(resolutions)) {
+  cat("Resolution matches\n")
+} else {
+  cat("Resolution does not match\n")
+}
+
+# Check Extents
+extents <- lapply(rasters, extent)
+if (are_identical(extents)) {
+  cat("Extent matches\n")
+} else {
+  cat("Extent does not match\n")
+}
+
+# Check Coordinate Systems
+crs_values <- lapply(rasters, crs)
+if (are_identical(crs_values)) {
+  cat("Coordinate system matches\n")
+} else {
+  cat("Coordinate system does not match\n")
 }
 
 ```
 
 ```{r, echo=FALSE}
 # Project the rasters
-pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
+# LCC_Probability <- projectRaster(LCC_Probability, crs = coordinate_system, method = "bilinear")
 # BII <- projectRaster(BII, crs = coordinate_system, method = "bilinear")
-LC_Vul_Clark <- projectRaster(LC_Vul_Clark, crs = coordinate_system, method = "bilinear")
-# dist_road <- projectRaster(dist_road, crs = coordinate_system, method = "bilinear")
-# dist_urban <- projectRaster(dist_urban, crs = coordinate_system, method = "bilinear")
-# slope <- projectRaster(slope, crs = coordinate_system, method = "bilinear")
+# Climate_Hazards <- projectRaster(Climate_Hazards, crs = coordinate_system, method = "bilinear")
+pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
+# UrbanProbability <- projectRaster(UrbanProbability, crs = coordinate_system, method = "bilinear")
 
 ```
 
 ```{r}
 # Resample each raster to match the resolution of prox_road
-pop2020 <- resample(pop2020, dist_road, method = "bilinear")
-BII <- resample(BII, dist_road, method = "bilinear")
-LC_Vul_Clark <- resample(LC_Vul_Clark, dist_road, method = "bilinear")
-dist_urban <- resample(dist_urban, dist_road, method = "bilinear")
-slope <- resample(slope, dist_road, method = "bilinear")
+LCC_Probability <- resample(LCC_Probability, UrbanProbability, method = "bilinear")
+BII <- resample(BII, UrbanProbability, method = "bilinear")
+Climate_Hazards <- resample(Climate_Hazards, UrbanProbability, method = "bilinear")
+pop2020 <- resample(pop2020, UrbanProbability, method = "bilinear")
+
 ```
 
 ```{r, echo=FALSE}
 # Clip the rasters with the polygon
-pop2020 <- crop(pop2020, cropbox)
-BII <- crop(BII, cropbox)
-LC_Vul_Clark <- crop(LC_Vul_Clark, cropbox)
-dist_road <- crop(dist_road, cropbox)
-dist_urban <- crop(dist_urban, cropbox)
-slope <- crop(slope, cropbox)
+# LCC_Probability <- crop(LCC_Probability, cropbox)
+# BII <- crop(BII, cropbox)
+# Climate_Hazards <- crop(Climate_Hazards, cropbox)
+# pop2020 <- crop(pop2020, cropbox)
+# UrbanProbability <- crop(UrbanProbability, cropbox)
+
 ```
 
 ```{r}
-plot(pop2020)
+plot(LCC_Probability)
 plot(BII)
-plot(LC_Vul_Clark)
-plot(dist_road)
-plot(dist_urban)
-plot(slope)
+plot(Climate_Hazards)
+plot(pop2020)
+plot(UrbanProbability)
+```
+```{r}
+# List of raster variables
+rasters = list(LCC_Probability, BII, Climate_Hazards, pop2020, UrbanProbability)
+
+# Function to check if all elements in a list are identical
+are_identical <- function(items) {
+  for (i in 2:length(items)) {
+    if (!identical(items[[1]], items[[i]])) {
+      return(FALSE)
+    }
+  }
+  return(TRUE)
+}
+
+# Check Resolution
+resolutions <- lapply(rasters, res)
+if (are_identical(resolutions)) {
+  cat("Resolution matches\n")
+} else {
+  cat("Resolution does not match\n")
+}
+
+# Check Extents
+extents <- lapply(rasters, extent)
+if (are_identical(extents)) {
+  cat("Extent matches\n")
+} else {
+  cat("Extent does not match\n")
+}
+
+# Check Coordinate Systems
+crs_values <- lapply(rasters, crs)
+if (are_identical(crs_values)) {
+  cat("Coordinate system matches\n")
+} else {
+  cat("Coordinate system does not match\n")
+}
+
+```
+```{r}
+# summary(LCC_Probability)
+# summary(BII)
+# summary(Climate_Hazards)
+# summary(pop2020)
+# summary(UrbanProbability)
 ```
 
-```{r, echo=FALSE}
-# # Check for Uniformity of raster data
-# # Check Resolution
-# res(pop2020)
-# 
-# # Check Extents
-# extent(pop2020)
-# 
-# # Check Coordinate Systems
-# crs(pop2020)
+```{r}
+library(terra)
+# List of raster names
+raster_names = c("LCC_Probability", "BII", "Climate_Hazards", "pop2020", "UrbanProbability")
+
+# Load rasters and replace NA with 0
+for (name in raster_names) {
+  # Dynamically load each raster
+  raster_data <- rast(get(name))
+
+  # Replace NA values with 0
+  raster_data[is.na(raster_data)] <- 0
+
+  # Update the raster in the global environment
+  assign(name, raster_data)
+}
+
+summary(LCC_Probability)
+summary(BII)
+summary(Climate_Hazards)
+summary(pop2020)
+summary(UrbanProbability)
+```
+
+
+```{r}
+normalize <- function(r) {
+  # Check if the raster has any layers
+  if (nlyr(r) <= 0) {
+    cat("Raster has no layers\n")
+    return(r)
+  }
+
+  # Extract the minimum and maximum values using global
+  # global returns a list, so we extract the first element
+  min_val <- global(r, fun = 'min', na.rm = TRUE)[[1]]
+  max_val <- global(r, fun = 'max', na.rm = TRUE)[[1]]
+
+  cat("Min value:", min_val, "Max value:", max_val, "\n")
+
+  # Check for NA values or no variation
+  if (is.na(min_val) || is.na(max_val) || min_val == max_val) {
+    cat("No variation or NA in raster values\n")
+    return(r)
+  }
+
+  # Apply normalization
+  normalized_raster <- app(r, fun = function(x) {(x - min_val) / (max_val - min_val)})
+  # Replace NaN values with NA if any
+  normalized_raster[is.nan(normalized_raster)] <- NA
+  return(normalized_raster)
+}
+
+# Apply normalization to each raster in the list
+for (name in raster_names) {
+  raster_data <- get(name)
+  normalized_raster <- normalize(raster_data)
+  assign(name, normalized_raster)  # Update the raster in the global environment
+}
+
+# Step 2: Multiply LCC_Probability and BII
+Bio_x_Risk <- LCC_Probability * BII
+
+# Step 3: Multiply Climate_Hazards and pop2020
+Anthro_x_Risk <- Climate_Hazards * pop2020
+
+# Step 4: Normalize the rasters
+Bio_x_Risk_norm <- normalize(Bio_x_Risk)
+Anthro_x_Risk_norm <- normalize(Anthro_x_Risk)
+UrbanProbability_norm <- normalize(UrbanProbability)
+
+# Step 5: Weighted Overlay Calculation
+Hotspot_Stoplight <- UrbanProbability_norm + Bio_x_Risk_norm * -0.25 + Anthro_x_Risk_norm * -0.25
+
+plot(Hotspot_Stoplight)
+
+
+
+```
+```{r}
+# Define the green-yellow-red color ramp
+color_ramp <- colorRampPalette(c("darkred", "darkorange", "yellow", "darkgreen"))
+
+# Extract the minimum and maximum values using global
+min_val <- global(Hotspot_Stoplight, fun = 'min', na.rm = TRUE)[[1]]
+max_val <- global(Hotspot_Stoplight, fun = 'max', na.rm = TRUE)[[1]]
+
+# Check if min_val and max_val are finite
+if (is.finite(min_val) && is.finite(max_val)) {
+    # Determine the number of breaks
+    num_breaks <- 10
+
+    # Create a sequence of equally spaced breaks
+    breaks <- seq(min_val, max_val, length.out = num_breaks)
+
+    # Plot the raster using the defined color ramp
+    plot(Hotspot_Stoplight, col=color_ramp(num_breaks), breaks=breaks, main="Hotspot Stoplight")
+} else {
+    cat("Raster contains non-finite or NA values only\n")
+}
 
 ```
 
 ```{r}
-# Save the rasters to the directory
-setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/clustering/data")
+# Export the raster as a TIFF
+setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction')
 
-writeRaster(pop2020, filename = "Pop_2020.tif", format = "GTiff", overwrite=TRUE)
-writeRaster(BII, filename = "BII.tif", format = "GTiff", overwrite=TRUE)
-writeRaster(LC_Vul_Clark, filename = "LC_Vul_Clark.tif", format = "GTiff", overwrite=TRUE)
-writeRaster(dist_road, filename = "dist_road.tif", format = "GTiff", overwrite=TRUE)
-writeRaster(dist_urban, filename = "dist_urban.tif", format = "GTiff", overwrite=TRUE)
-writeRaster(slope, filename = "slope.tif", format = "GTiff", overwrite=TRUE)
+# Save the final raster
+writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight.tif", overwrite=TRUE)
 ```
-
 
 
 ```{r timer_end}
