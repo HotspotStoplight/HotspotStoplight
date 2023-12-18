@@ -93,23 +93,6 @@ temp <- tempfile(fileext = ".tif")
 download.file(url, temp, method = "auto")
 dist_urban <- raster(temp)
 
-# WDPA
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/wdpa.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-wdpa <- raster(temp)
-
-# BIODIVERSITY INTACTNESS INDEX
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/BiodiversityIntactnessIndex_2020.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-BII <- raster(temp)
-
-# LAND COVER CHANGE PROBABILITY
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Land_Cover_Change_Probs.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-LC_Vul_Clark <- raster(temp)
 
 ```
 

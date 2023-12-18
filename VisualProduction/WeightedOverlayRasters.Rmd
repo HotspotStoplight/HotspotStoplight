@@ -243,7 +243,7 @@ for (name in raster_names) {
 
 # Step 2: Multiply LCC_Probability and BII
 # Bio_x_Risk <- LCC_Probability * BII
-Bio_x_Risk <- LCC_Probability + BII
+Bio_x_Risk <- BII + normalize(LCC_Probability * BII)
 
 # Step 3: Multiply Climate_Hazards and pop2020
 # Anthro_x_Risk <- Climate_Hazards * pop2020
@@ -257,7 +257,7 @@ UrbanProbability_norm <- normalize(UrbanProbability)
 # Step 5: Weighted Overlay Calculation
 # Hotspot_Stoplight <- normalize(UrbanProbability_norm + Bio_x_Risk_norm * -0.25 + Anthro_x_Risk_norm * -0.25)
 Hotspot_Stoplight <- normalize(UrbanProbability_norm - Bio_x_Risk_norm - Anthro_x_Risk_norm)
-Hotspot_Stoplight <- normalize(UrbanProbability_norm - BII - Anthro_x_Risk_norm)
+# Hotspot_Stoplight <- normalize(UrbanProbability_norm - BII - Anthro_x_Risk_norm)
 
 ```
 ```{r}
@@ -289,7 +289,7 @@ if (is.finite(min_val) && is.finite(max_val)) {
 setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction')
 
 # Save the final raster
-writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight_NEW.tif", overwrite=TRUE)
+writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight_2023.tif", overwrite=TRUE)
 ```
 
 
