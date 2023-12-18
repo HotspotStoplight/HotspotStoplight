@@ -262,7 +262,7 @@ Hotspot_Stoplight <- normalize(UrbanProbability_norm - BII - Anthro_x_Risk_norm)
 ```
 ```{r}
 # Define the green-yellow-red color ramp
-color_ramp <- colorRampPalette(c("darkred", "darkorange", "yellow", "darkgreen"))
+color_ramp <- colorRampPalette(c("red", "yellow", "darkgreen"))
 
 # Extract the minimum and maximum values using global
 min_val <- global(Hotspot_Stoplight, fun = 'min', na.rm = TRUE)[[1]]
@@ -271,7 +271,7 @@ max_val <- global(Hotspot_Stoplight, fun = 'max', na.rm = TRUE)[[1]]
 # Check if min_val and max_val are finite
 if (is.finite(min_val) && is.finite(max_val)) {
     # Determine the number of breaks
-    num_breaks <- 10
+    num_breaks <- 100
 
     # Create a sequence of equally spaced breaks
     breaks <- seq(min_val, max_val, length.out = num_breaks)
@@ -289,7 +289,7 @@ if (is.finite(min_val) && is.finite(max_val)) {
 setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction')
 
 # Save the final raster
-writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight.tif", overwrite=TRUE)
+writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight_NEW.tif", overwrite=TRUE)
 ```
 
 
