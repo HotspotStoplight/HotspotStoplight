@@ -178,21 +178,6 @@ for (i in 1:nlayers(probmaps)) {
 ```
 
 
-
-
-```{r}
-library(raster)
-library(rasterVis)
-
-# Set Working Directory
-setwd("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data")
-
-# Exporting the raster as TIFF
-output_filename <- "landcover_probmaps2023.tif"
-writeRaster(probmaps, filename=output_filename, format="GTiff", overwrite=TRUE)
-
-```
-
 Model performance is assessed using the receiver operator characteristic provided by the [ROCR](http://cran.r-project.org/web/packages/ROCR/index.html) package. lulcc includes classes `Prediction` and `Performance` which extend the native ROCR classes to contain multiple `prediction` and `performance` objects. The procedure to obtain these objects and assess performance is as follows:
 
 ```{r Performances, echo = TRUE}

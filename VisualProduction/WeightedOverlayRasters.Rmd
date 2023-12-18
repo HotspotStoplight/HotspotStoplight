@@ -185,13 +185,6 @@ if (are_identical(crs_values)) {
 }
 
 ```
-```{r}
-# summary(LCC_Probability)
-# summary(BII)
-# summary(Climate_Hazards)
-# summary(pop2020)
-# summary(UrbanProbability)
-```
 
 ```{r}
 library(terra)
@@ -210,11 +203,6 @@ for (name in raster_names) {
   assign(name, raster_data)
 }
 
-summary(LCC_Probability)
-summary(BII)
-summary(Climate_Hazards)
-summary(pop2020)
-summary(UrbanProbability)
 ```
 
 
@@ -254,10 +242,12 @@ for (name in raster_names) {
 }
 
 # Step 2: Multiply LCC_Probability and BII
-Bio_x_Risk <- LCC_Probability * BII
+# Bio_x_Risk <- LCC_Probability * BII
+Bio_x_Risk <- LCC_Probability + BII
 
 # Step 3: Multiply Climate_Hazards and pop2020
-Anthro_x_Risk <- Climate_Hazards * pop2020
+# Anthro_x_Risk <- Climate_Hazards * pop2020
+Anthro_x_Risk <- Climate_Hazards + pop2020
 
 # Step 4: Normalize the rasters
 Bio_x_Risk_norm <- normalize(Bio_x_Risk)
@@ -265,11 +255,9 @@ Anthro_x_Risk_norm <- normalize(Anthro_x_Risk)
 UrbanProbability_norm <- normalize(UrbanProbability)
 
 # Step 5: Weighted Overlay Calculation
-Hotspot_Stoplight <- UrbanProbability_norm + Bio_x_Risk_norm * -0.25 + Anthro_x_Risk_norm * -0.25
-
-plot(Hotspot_Stoplight)
-
-
+# Hotspot_Stoplight <- normalize(UrbanProbability_norm + Bio_x_Risk_norm * -0.25 + Anthro_x_Risk_norm * -0.25)
+Hotspot_Stoplight <- normalize(UrbanProbability_norm - Bio_x_Risk_norm - Anthro_x_Risk_norm)
+Hotspot_Stoplight <- normalize(UrbanProbability_norm - BII - Anthro_x_Risk_norm)
 
 ```
 ```{r}
