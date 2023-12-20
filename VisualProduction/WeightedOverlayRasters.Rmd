@@ -1,32 +1,60 @@
 ---
 title: "Raster Pre-Processing"
+author: "Oliver Atwood"
 output: html_document
-date: "2023-12-01"
+date: "`r Sys.Date()`"
 ---
+# Overview
+<br>
+This r markdown script pre-processes raster data used in the Hotspot Stoplight Project for visualization and cluster analysis. The datasets used in this project are as follows:
+
+* LAND COVER CHANGE PROBABILITY - [Clark Labs](https://env1.arcgis.com/arcgis/rest/services/Land_Cover_Vulnerability_2050/ImageServer0)
+* BIODIVERSITY INTACTNESS INDEX - [Impact Observatory](https://gee-community-catalog.org/projects/bii/)
+* CLIMATE RISK INDEX - Hotspot Stoplight Team: [Nissim Lebovits](http://nlebovits.github.io/)
+* GRIDDED 2020 POPULATION - [Global Human Settlements Layer](https://ghsl.jrc.ec.europa.eu/download.php?ds=bu)
+* URBAN LAND COVER PROBABILITY - Hotspot Stoplight Team: Oliver Atwood, using classified data from Tristan Grupp
+<br>
+<br>
+
+* Each of these raster datasets are loaded into R and their Coordinate Systems, Resolution, and Extent are standardized. NA values are then removed and each dataset is standardized.
+<br>
+* Four of these standardized datasets are then combined to produce two 'Interaction Rasters', using the following formulas:
+<br>
+Bio_x_Risk = LCC_Probability * BII
+<br>
+*Bio_x_Risk emphasizes areas of high land cover change probability and high biodiversity intactness.*
+<br>
+Anthro_x_Risk = Climate_Hazards * pop2020
+<br>
+*Anthro_x_Risk emphasizes areas of high climate hazard probability and high human population.*
+<br>
+Urban Land Cover Probability is a dataset generated through a random forest model trained on a range of physiographic factors to predict the likelihood of a given cell of a land cover raster to be urban in 2033.
+<br>
+
+* Bio_x_Risk and Anthro_x_Risk were both normalized and Bio_x_Risk, Anthro_x_Risk, and Urban Land Cover Probability were exported for clustering analysis.
+<br>
+* These three datasets were then added together and the resultant raster dataset was normalized to produce a 'Stoplight for Urban Development'.
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse=TRUE)
 rm(list=ls())
 ```
 
-## R Markdown
-
-```{r}
+```{r, message=FALSE, warning=FALSE, cache=TRUE, results = 'hide'}
 library(sf)
-library(ggplot2)
 library(raster)
 library(dplyr)
 library(readr)
 library(terra)
 library(spdep)
-
+library(rasterVis)
 
 # Capture the start time
 start_time <- Sys.time()
 ```
 
 ## Setting Parameters
-```{r}
+```{r, message=FALSE, warning=FALSE, cache=TRUE, results = 'hide'}
 coordinate_system <- 4326
 # Target resolution in m
 resolution <- 30
@@ -35,13 +63,13 @@ resolution <- (resolution/30)/3600
 
 ```
 
-```{r, echo=FALSE}
+## Loading Datasets
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, results = 'hide'}
 # Read the Boundary file
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
 cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
-
 
 # LAND COVER CHANGE PROBABILITY
 url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Land_Cover_Change_Probs.tif"
@@ -64,13 +92,12 @@ temp <- tempfile(fileext = ".tif")
 download.file(url, temp, method = "auto")
 pop2020 <- raster(temp)
 
-# URBAN PROBABILITY
+# URBAN LAND COVER PROBABILITY
 UrbanProbability <- raster('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/UrbanExpansion/data/Built.tif')
 
-
 ```
-
-```{r}
+## Check Raster Coordinate Systems, Resolutions, and Extents
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # List of raster variables
 rasters = list(LCC_Probability, BII, Climate_Hazards, pop2020, UrbanProbability)
 
@@ -82,6 +109,14 @@ are_identical <- function(items) {
     }
   }
   return(TRUE)
+}
+
+# Check Coordinate Systems
+crs_values <- lapply(rasters, crs)
+if (are_identical(crs_values)) {
+  cat("Coordinate system matches\n")
+} else {
+  cat("Coordinate system does not match\n")
 }
 
 # Check Resolution
@@ -100,17 +135,11 @@ if (are_identical(extents)) {
   cat("Extent does not match\n")
 }
 
-# Check Coordinate Systems
-crs_values <- lapply(rasters, crs)
-if (are_identical(crs_values)) {
-  cat("Coordinate system matches\n")
-} else {
-  cat("Coordinate system does not match\n")
-}
-
 ```
 
-```{r, echo=FALSE}
+## Unify Raster Coordinate Systems, Resolutions, and Extents
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+# COORDINATE SYSTEMS
 # Project the rasters
 # LCC_Probability <- projectRaster(LCC_Probability, crs = coordinate_system, method = "bilinear")
 # BII <- projectRaster(BII, crs = coordinate_system, method = "bilinear")
@@ -118,18 +147,14 @@ if (are_identical(crs_values)) {
 pop2020 <- projectRaster(pop2020, crs = coordinate_system, method = "bilinear")
 # UrbanProbability <- projectRaster(UrbanProbability, crs = coordinate_system, method = "bilinear")
 
-```
-
-```{r}
+# RESOLUTIONS
 # Resample each raster to match the resolution of prox_road
 LCC_Probability <- resample(LCC_Probability, UrbanProbability, method = "bilinear")
 BII <- resample(BII, UrbanProbability, method = "bilinear")
 Climate_Hazards <- resample(Climate_Hazards, UrbanProbability, method = "bilinear")
 pop2020 <- resample(pop2020, UrbanProbability, method = "bilinear")
 
-```
-
-```{r, echo=FALSE}
+# EXTENTS
 # Clip the rasters with the polygon
 # LCC_Probability <- crop(LCC_Probability, cropbox)
 # BII <- crop(BII, cropbox)
@@ -139,14 +164,16 @@ pop2020 <- resample(pop2020, UrbanProbability, method = "bilinear")
 
 ```
 
-```{r}
+## Plot Rasters for Visual Inspection
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 plot(LCC_Probability)
 plot(BII)
 plot(Climate_Hazards)
 plot(pop2020)
 plot(UrbanProbability)
 ```
-```{r}
+## Double-Check Raster Coordinate Systems, Resolutions, and Extents
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # List of raster variables
 rasters = list(LCC_Probability, BII, Climate_Hazards, pop2020, UrbanProbability)
 
@@ -158,6 +185,14 @@ are_identical <- function(items) {
     }
   }
   return(TRUE)
+}
+
+# Check Coordinate Systems
+crs_values <- lapply(rasters, crs)
+if (are_identical(crs_values)) {
+  cat("Coordinate system matches\n")
+} else {
+  cat("Coordinate system does not match\n")
 }
 
 # Check Resolution
@@ -176,18 +211,9 @@ if (are_identical(extents)) {
   cat("Extent does not match\n")
 }
 
-# Check Coordinate Systems
-crs_values <- lapply(rasters, crs)
-if (are_identical(crs_values)) {
-  cat("Coordinate system matches\n")
-} else {
-  cat("Coordinate system does not match\n")
-}
-
 ```
-
-```{r}
-library(terra)
+## Remove all NA values from rasters
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # List of raster names
 raster_names = c("LCC_Probability", "BII", "Climate_Hazards", "pop2020", "UrbanProbability")
 
@@ -205,8 +231,8 @@ for (name in raster_names) {
 
 ```
 
-
-```{r}
+## Normalize all rasters
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 normalize <- function(r) {
   # Check if the raster has any layers
   if (nlyr(r) <= 0) {
@@ -241,29 +267,106 @@ for (name in raster_names) {
   assign(name, normalized_raster)  # Update the raster in the global environment
 }
 
-# Step 2: Multiply LCC_Probability and BII
-# Bio_x_Risk <- LCC_Probability * BII
-Bio_x_Risk <- BII + normalize(LCC_Probability * BII)
+```
 
-# Step 3: Multiply Climate_Hazards and pop2020
-# Anthro_x_Risk <- Climate_Hazards * pop2020
-Anthro_x_Risk <- Climate_Hazards + pop2020
+## Generate Interaction Rasters
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+# Multiply LCC_Probability and BII
+Bio_x_Risk <- LCC_Probability * BII
+# Bio_x_Risk <- BII + normalize(LCC_Probability * BII)
 
-# Step 4: Normalize the rasters
+# Multiply Climate_Hazards and pop2020
+Anthro_x_Risk <- Climate_Hazards * pop2020
+# Anthro_x_Risk <- Climate_Hazards + pop2020
+# Anthro_x_Risk <- Climate_Hazards + normalize(Climate_Hazards * pop2020)
+
+# Normalize the interaction rasters
 Bio_x_Risk_norm <- normalize(Bio_x_Risk)
 Anthro_x_Risk_norm <- normalize(Anthro_x_Risk)
 UrbanProbability_norm <- normalize(UrbanProbability)
 
-# Step 5: Weighted Overlay Calculation
+```
+
+## Overlay Rasters to Produce 'Stoplight For Urban Development'
+```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+# Weighted Overlay Calculation
 # Hotspot_Stoplight <- normalize(UrbanProbability_norm + Bio_x_Risk_norm * -0.25 + Anthro_x_Risk_norm * -0.25)
 Hotspot_Stoplight <- normalize(UrbanProbability_norm - Bio_x_Risk_norm - Anthro_x_Risk_norm)
 # Hotspot_Stoplight <- normalize(UrbanProbability_norm - BII - Anthro_x_Risk_norm)
+```
+
+# Plots
+<br>
+```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+# Define the green-yellow-red color ramp
+color_ramp <- colorRampPalette(c("darkgreen", "yellow", "red"))
+
+# Extract the minimum and maximum values using global
+min_val <- global(Anthro_x_Risk_norm, fun = 'min', na.rm = TRUE)[[1]]
+max_val <- global(Anthro_x_Risk_norm, fun = 'max', na.rm = TRUE)[[1]]
+
+# Check if min_val and max_val are finite
+if (is.finite(min_val) && is.finite(max_val)) {
+    # Determine the number of breaks
+    num_breaks <- 255
+
+    # Create a sequence of equally spaced breaks
+    breaks <- seq(min_val, max_val, length.out = num_breaks)
+
+    # Plot the raster using the defined color ramp
+    levelplot(Anthro_x_Risk_norm, col.regions=color_ramp(num_breaks), at=breaks, main="Anthropogenic Risk Index")
+} else {
+    cat("Raster contains non-finite or NA values only\n")
+}
 
 ```
-```{r}
+
+```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+# Extract the minimum and maximum values using global
+min_val <- global(Bio_x_Risk_norm, fun = 'min', na.rm = TRUE)[[1]]
+max_val <- global(Bio_x_Risk_norm, fun = 'max', na.rm = TRUE)[[1]]
+
+# Check if min_val and max_val are finite
+if (is.finite(min_val) && is.finite(max_val)) {
+    # Determine the number of breaks
+    num_breaks <- 255
+    # Create a sequence of equally spaced breaks
+    breaks <- seq(min_val, max_val, length.out = num_breaks)
+
+    # Plot the raster using the defined color ramp
+    levelplot(Bio_x_Risk_norm, col.regions=color_ramp(num_breaks), at=breaks, main="Biodiversity Risk Index")
+} else {
+    cat("Raster contains non-finite or NA values only\n")
+}
+
+```
+
+```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # Define the green-yellow-red color ramp
 color_ramp <- colorRampPalette(c("red", "yellow", "darkgreen"))
 
+# Extract the minimum and maximum values using global
+min_val <- global(UrbanProbability_norm, fun = 'min', na.rm = TRUE)[[1]]
+max_val <- global(UrbanProbability_norm, fun = 'max', na.rm = TRUE)[[1]]
+
+# Check if min_val and max_val are finite
+if (is.finite(min_val) && is.finite(max_val)) {
+    # Determine the number of breaks
+    num_breaks <- 255
+
+    # Create a sequence of equally spaced breaks
+    breaks <- seq(min_val, max_val, length.out = num_breaks)
+
+    # Plot the raster using the defined color ramp
+    levelplot(UrbanProbability_norm, col.regions=color_ramp(num_breaks), at=breaks, main="Urban Probability - Random Forest Model, 2033")
+} else {
+    cat("Raster contains non-finite or NA values only\n")
+}
+
+```
+
+## Hotspot Stoplight Raster
+```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # Extract the minimum and maximum values using global
 min_val <- global(Hotspot_Stoplight, fun = 'min', na.rm = TRUE)[[1]]
 max_val <- global(Hotspot_Stoplight, fun = 'max', na.rm = TRUE)[[1]]
@@ -271,7 +374,7 @@ max_val <- global(Hotspot_Stoplight, fun = 'max', na.rm = TRUE)[[1]]
 # Check if min_val and max_val are finite
 if (is.finite(min_val) && is.finite(max_val)) {
     # Determine the number of breaks
-    num_breaks <- 100
+    num_breaks <- 255
 
     # Create a sequence of equally spaced breaks
     breaks <- seq(min_val, max_val, length.out = num_breaks)
@@ -283,15 +386,24 @@ if (is.finite(min_val) && is.finite(max_val)) {
 }
 
 ```
-
+## Export Datasets for Further Analysis
 ```{r}
-# Export the raster as a TIFF
-setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction')
-
-# Save the final raster
-writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight_2023.tif", overwrite=TRUE)
+# # Export the raster as a TIFF
+# setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction')
+# 
+# # Save the final raster
+# writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight_2023.tif", overwrite=TRUE)
 ```
 
+```{r}
+# # Export the raster as a TIFF
+# setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/clustering')
+# 
+# # Save the final raster
+# writeRaster(Bio_x_Risk_norm, "BioRiskNorm.tif", overwrite=TRUE)
+# writeRaster(Anthro_x_Risk_norm, "AnthroRiskNorm.tif", overwrite=TRUE)
+# writeRaster(UrbanProbability_norm, "UrbanProbability.tif", overwrite=TRUE)
+```
 
 ```{r timer_end}
 # Capture the end time
