@@ -38,52 +38,60 @@ resolution <- (resolution/30)/3600
 
 ```{r, echo=FALSE}
 # Read the GeoJSON file
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
-# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5a.geojson")
 
-# POPULATION 2020
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Pop_2020_Crop4.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-pop2020 <- raster(temp)
-
-# SLOPE
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Slope.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-slope <- raster(temp)
-
-# DISTANCE TO URBAN LAND COVER
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/dist2urban.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-dist_urban <- raster(temp)
-
-# DISTANCE TO ROADS
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/roads_proximity.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-dist_road <- raster(temp)
-
+# # POPULATION 2020
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Pop_2020_Crop4.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# pop2020 <- raster(temp)
+# 
+# # SLOPE
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Slope.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# slope <- raster(temp)
+# 
+# # DISTANCE TO URBAN LAND COVER
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/dist2urban.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# dist_urban <- raster(temp)
+# 
+# # DISTANCE TO ROADS
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/roads_proximity.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# dist_road <- raster(temp)
+# 
 # IUCN SPECIES
 url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/clustering/data/IUCN_Species.tif"
 temp <- tempfile(fileext = ".tif")
 download.file(url, temp, method = "auto")
 IUCN_Species <- raster(temp)
+# 
+# # BIODIVERSITY INTACTNESS INDEX
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/BiodiversityIntactnessIndex_2020.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# BII <- raster(temp)
+# 
+# # LAND COVER CHANGE PROBABILITY
+# url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Land_Cover_Change_Probs.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# LC_Vul_Clark <- raster(temp)
 
-# BIODIVERSITY INTACTNESS INDEX
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/BiodiversityIntactnessIndex_2020.tif"
+# URBAN LAND COVER PROBABILITY
+url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Built.tif"
 temp <- tempfile(fileext = ".tif")
 download.file(url, temp, method = "auto")
-BII <- raster(temp)
+Urban_Probability <- raster(temp)
 
-# LAND COVER CHANGE PROBABILITY
-url <- "https://github.com/HotspotStoplight/HotspotStoplight/raw/main/UrbanExpansion/data/Land_Cover_Change_Probs.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-LC_Vul_Clark <- raster(temp)
+
 
 ```
 

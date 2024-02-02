@@ -297,6 +297,52 @@ Hotspot_Stoplight <- normalize(UrbanProbability_norm - Bio_x_Risk_norm - Anthro_
 
 # Plots
 <br>
+
+```{r, fig.width=10, fig.height=30}
+color_ramp <- colorRampPalette(c("darkgreen", "yellow", "red"))
+
+# Function to create plots with the dark theme
+plot_raster <- function(raster, values, title) {
+  num_breaks <- 255
+  breaks <- seq(values[1], values[2], length.out = num_breaks)
+  levelplot(raster, col.regions = color_ramp(num_breaks), at = breaks, main = title,
+            par.settings = list(
+              axis.line = list(col = "white"),
+              axis.text = list(col = "white"),
+              strip.background = list(col = "#6b6b6b"),
+              strip.border = list(col = "white"),
+              background = list(col = "#6b6b6b"),  # Set background to black
+              main.text = list(col = "white"),  # Set main title color to white
+              col.lab = "white",  # Set axis labels to white
+              col.main = "white",  # Set main title color to white
+              col.sub = "white"    # Set subtitle color to white
+            ))  # Ensure color key is visible on a dark background
+}
+
+# Load your raster data and calculate the minimum and maximum values for each raster.
+min_max_values <- function(raster) {
+  min_val <- global(raster, fun = 'min', na.rm = TRUE)[[1]]
+  max_val <- global(raster, fun = 'max', na.rm = TRUE)[[1]]
+  if (is.finite(min_val) && is.finite(max_val)) {
+    return(c(min_val, max_val))
+  } else {
+    cat("Raster contains non-finite or NA values only\n")
+    return(NULL)
+  }
+}
+
+anthro_values <- min_max_values(Anthro_x_Risk_norm)
+bio_values <- min_max_values(Bio_x_Risk_norm)
+urban_values <- min_max_values(UrbanProbability_norm)
+
+# Create and arrange plots
+plot1 <- plot_raster(Anthro_x_Risk_norm, anthro_values, "Anthropogenic Risk Index")
+plot2 <- plot_raster(Bio_x_Risk_norm, bio_values, "Biodiversity Risk Index")
+plot3 <- plot_raster(UrbanProbability_norm, urban_values, "Urban Probability - Random Forest Model, 2033")
+
+grid.arrange(plot1, plot2, plot3, ncol = 1)
+```
+
 ```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # Define the green-yellow-red color ramp
 color_ramp <- colorRampPalette(c("darkgreen", "yellow", "red"))
