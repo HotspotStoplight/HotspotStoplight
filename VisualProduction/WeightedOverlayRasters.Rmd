@@ -24,7 +24,7 @@ This r markdown script pre-processes raster data used in the Hotspot Stoplight P
 <br>
 *Bio_Loss_Risk emphasizes areas of high land cover change probability and high biodiversity intactness.*
 <br>
-+ Climate_Impact_Risk = Climate_Hazards * pop2020
++ Climate_Impact_Risk = Climate_Hazards * population
 <br>
 *Climate_Impact_Risk emphasizes areas of high climate hazard probability and high human population.*
 <br>
@@ -51,17 +51,20 @@ library(rasterVis)
 library(lattice)
 library(gridExtra)
 library(viridis)
+library(classInt)
+library(sp)
+library(RColorBrewer)
+library(grDevices)
 
-# Capture the start time
-# start_time <- Sys.time()
 ```
 
 ## Setting Parameters
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, results = 'hide', echo=FALSE}
 coordinate_system <- 4326
 # Target resolution in m
-# resolution <- 30
-resolution <- 60
+resolution <- 30
+# resolution <- 60
+# resolution <- 100
 # Conversion to degrees
 resolution <- (resolution/30)/3600
 
@@ -69,150 +72,120 @@ resolution <- (resolution/30)/3600
 
 ## Loading Datasets
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE, results = 'hide'}
-# Read the Boundary file
+# Base directory
+inputs <- '/Users/oliveratwood/Documents/GitHub/HotspotStoplight/LandCoverChange/data/outputs/cropped/crop5c_30m/'
+
+outputs <- "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/LandCoverChange/data/outputs/cropped/crop5c_30m"
+
+# Load the raster datasets
+lc_2023 <- raster(paste0(inputs, 'lc_2023.tif'))
+lc_2050 <- raster(paste0(inputs, 'lc_2050.tif'))
+UrbanProbability <- raster(paste0(inputs, 'Built.tif'))
+OtherProbability <- raster(paste0(inputs, 'Other.tif'))
+
+# # List of file names
+# filenames <- c('lc_2023.tif', 'lc_2050.tif', 'Built.tif', 'Other.tif')
+# var_names <- c('lc_2023', 'lc_2050', 'UrbanProbability', 'OtherProbability')
+# 
+# # Loop through each file name and assign its full path to a dynamically named variable
+# for (i in 1:length(filenames)) {
+#   # Generate the full path for the current file
+#   full_path <- file.path(inputs, filenames[i])
+# 
+#   # Dynamically create a variable with the name from var_names and assign the full path to it
+#   assign(var_names[i], full_path)
+# }
+
+
+BII <- raster("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/Biodiversity/data/outputs/BiodiversityIntactness_2020.tif")
+Flood_Probability <- raster("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/Climate/outputs/data-costa_rica-outputs-flood_prob.tif")
+Heat_Probability <- raster("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/Climate/outputs/data-costa_rica-outputs-predicted_median_top5_costa_rica.tif")
+population <- raster("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/Climate/vulnerability/data/inputs/High_Resolution_Settlement_Layer_crop2.tif")
+GDP <- raster("/Users/oliveratwood/Documents/GitHub/HotspotStoplight/Climate/vulnerability/data/inputs/GDP_2018_USD_Millions_Crop2.tif")
+
+
+# Read the Boundary files
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5a.geojson")
-cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5b.geojson")
+cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop5c.geojson")
 # cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop6.geojson")
+# cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotStoplight/main/CropBoxes/CR_Crop4.geojson")
 
-# LAND COVER CHANGE PROBABILITY
-# URBAN
-# url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/OUTPUTS/Crop5a_30m/Built.tif"
-url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/OUTPUTS/crop5_60m/Built.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-UrbanProbability <- raster(temp)
-
-# CLARK LABS
-# url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/Land_Cover_Change_Probs_Clark.tif"
-
-# OTHER
-# url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/OUTPUTS/Crop5a_30m/Other.tif"
-url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/OUTPUTS/crop5_60m/Other.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-OtherProbability <- raster(temp)
-
-# LCC_Probability <- OtherProbability + UrbanProbability
-LCC_Probability <- OtherProbability
-
-# BIODIVERSITY INTACTNESS INDEX
-url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/BiodiversityIntactnessIndex_2020.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-BII <- raster(temp)
-
-# CLIMATE HAZARDS
-url <- "https://github.com/HotspotStoplight/Climate/raw/main/OUTPUT_RASTERS/data-San%20Jose-outputs-flood_prob.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-Climate_Hazards <- raster(temp)
-
-# add code here to bring in additional risk index rasters
-
-# POPULATION 2020
-url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/Pop_2020_Crop4.tif"
-temp <- tempfile(fileext = ".tif")
-download.file(url, temp, method = "auto")
-pop2020 <- raster(temp)
-
-# add code here for vulnerability-adusted climate risk index raster calculations
-# (pop / (HDI * GDP)) * (ClimateHazard1 * ClimateHazard2 * ...)
+# # PRESENT LAND COVER
+# url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/outputs/cropped/crop4_100m/lc_2023.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# lc_2023 <- raster(temp)
+# 
+# # PREDICTED LAND COVER
+# url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/outputs/cropped/crop4_100m/lc_2050.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# lc_2050 <- raster(temp)
+# 
+# # LAND COVER CHANGE PROBABILITY
+# # CLARK LABS
+# # url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/Land_Cover_Change_Probs_Clark.tif"
+# 
+# # URBAN
+# url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/outputs/cropped/crop4_100m/Built.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# UrbanProbability <- raster(temp)
+# 
+# # OTHER
+# url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/outputs/cropped/crop4_100m/Other.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# OtherProbability <- raster(temp)
+# 
+# # LCC_Probability <- OtherProbability + UrbanProbability
+# # LCC_Probability <- OtherProbability
+# 
+# # BIODIVERSITY INTACTNESS INDEX
+# url <- "https://github.com/HotspotStoplight/Biodiversity/raw/main/data/outputs/BiodiversityIntactness_2020.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# BII <- raster(temp)
+# 
+# # CLIMATE HAZARDS
+# # Flood Hazard Probability
+# url <- "https://github.com/HotspotStoplight/Climate/raw/main/outputs/data-San_Jose-outputs-flood_prob.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# Flood_Probability <- raster(temp)
+# 
+# # Heat Hazard Probability
+# url <- "https://github.com/HotspotStoplight/Climate/raw/main/outputs/data-costa_rica-outputs-predicted_hot_days_costa_rica.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# Heat_Probability <- raster(temp)
+# 
+# # POPULATION
+# # url <- "https://github.com/HotspotStoplight/LandCoverChange/raw/main/data/Pop_2020_Crop4.tif"
+# # temp <- tempfile(fileext = ".tif")
+# # download.file(url, temp, method = "auto")
+# # population <- raster(temp)
+# 
+# url <- "https://github.com/HotspotStoplight/Climate/raw/main/vulnerability/data/inputs/High_Resolution_Settlement_Layer_crop2.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# population <- raster(temp)
+# 
+# # GDP
+# url <- "https://github.com/HotspotStoplight/Climate/raw/main/vulnerability/data/inputs/GDP_2018_USD_Millions_Crop2.tif"
+# temp <- tempfile(fileext = ".tif")
+# download.file(url, temp, method = "auto")
+# GDP <- raster(temp)
 
 # List of raster variables
-raster_list = list(LCC_Probability, BII, Climate_Hazards, pop2020, UrbanProbability)
-```
+raster_list = list(BII, Flood_Probability, Heat_Probability, population, UrbanProbability, OtherProbability, lc_2023, lc_2050, GDP)
 
-## Unify Raster Coordinate Systems, Resolutions, and Extents
+```
+## Define Normalization Functions (MIN-MAX)
 ```{r}
-# Specify resolution in meters
-resolution <- 90
-# Conversion to degrees
-resolution <- resolution / (30*3600)
-
-# Extract extent and crs from cropbox
-bbox <- st_bbox(cropbox)
-extent <- as(extent(bbox), "Extent")
-crs <- crs(cropbox)
-res <- resolution
-
-# Calculate the number of columns and rows based on the resolution and the extent
-nrows <- ceiling((extent@ymax - extent@ymin) / res)
-ncols <- ceiling((extent@xmax - extent@xmin) / res)
-
-# Create an empty raster with the specified extent, resolution, and CRS
-# Here, we manually specify xmn, xmx, ymn, ymx based on the extent object
-r <- raster(nrows=nrows, ncols=ncols, xmn=extent@xmin, xmx=extent@xmax, ymn=extent@ymin, ymx=extent@ymax, crs=crs)
-
-# Define the target characteristics from the raster 'r'
-target_crs <- crs(r)
-target_extent <- extent(r)
-target_resolution <- res(r)
-
-# Initialize an empty list to store the standardized rasters
-standardized_rasters <- list()
-
-# Loop through each raster in raster_list to standardize them
-for (i in 1:length(raster_list)) {
-  # Read the raster
-  current_raster <- raster_list[[i]]
-  
-  # Step 1: Reproject the raster to match the target CRS, using compareCRS for comparison
-  if (!compareCRS(crs(current_raster), target_crs)) {
-    current_raster <- projectRaster(current_raster, crs = target_crs)
-  }
-  
-  # Step 2: Resample the raster to match the target resolution and extent using bilinear interpolation
-  current_raster <- resample(current_raster, r, method = "bilinear")
-  
-  # Step 3: Crop the raster to ensure it matches the target extent exactly
-  current_raster <- crop(current_raster, target_extent)
-  
-  # Add the standardized raster to the list
-  standardized_rasters[[i]] <- current_raster
-}
-
-# Naming the lists after projection
-raster_names <- c("LCC_Probability", "BII", "Climate_Hazards", "pop2020", "UrbanProbability")
-names(standardized_rasters) <- raster_names
-
-# Overwrite raster_list with the standardized rasters
-raster_list <- standardized_rasters
-```
-
-## Remove all NA values from rasters
-```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-# Function to load rasters, replace NA with 0, and return the modified list
-process_rasters <- function(raster_list) {
-  processed_list <- list() # Initialize an empty list to store processed rasters
-  
-  for (i in 1:length(raster_list)) {
-    # Copy the raster to avoid modifying the original list directly
-    raster_data <- raster_list[[i]]
-    
-    # Replace NA values with 0
-    raster_data[is.na(raster_data)] <- 0
-    
-    # Add the processed raster to the new list
-    processed_list[[i]] <- raster_data
-  }
-  
-  # Return the processed list of rasters
-  return(processed_list)
-}
-
-# Apply the function to raster_list
-raster_list <- process_rasters(raster_list)
-
-# Naming the processed list as per the original names
-names(raster_list) <- c("LCC_Probability", "BII", "Climate_Hazards", "pop2020", "UrbanProbability")
-
-```
-
-## Define Normalization Functions
-MIN-MAX
-```{r}
-normalize_minmax <- function(raster) {
+norm <- function(raster) {
   # Calculate the minimum and maximum values of the raster
   min_val <- minValue(raster)
   max_val <- maxValue(raster)
@@ -230,198 +203,336 @@ normalize_minmax <- function(raster) {
   return(normalized_raster)
 }
 ```
-ROBUST
-```{r}
-normalize_robust <- function(raster) {
-  # Calculate the first and third quartiles
-  Q1 <- quantile(raster, probs = 0.25, na.rm = TRUE)
-  Q3 <- quantile(raster, probs = 0.75, na.rm = TRUE)
-  
-  # Calculate the interquartile range (IQR)
-  IQR <- Q3 - Q1
-  
-  # Perform robust scaling
-  # Note: Use overlay or calc function for raster operations
-  normalized_raster <- calc(raster, function(x) {
-    # Apply the robust scaling formula
-    (x - Q1) / IQR
-  })
-  
-  # Handle any potential division by zero or other anomalies
-  normalized_raster[is.infinite(normalized_raster)] <- NA
-  
-  return(normalized_raster)
-}
-```
-Z-SCORE
-```{r}
-normalize_zscore <- function(r) {
-  # Calculate the mean and standard deviation using cellStats
-  mean_val <- cellStats(r, stat = 'mean', na.rm = TRUE)
-  std_dev <- cellStats(r, stat = 'sd', na.rm = TRUE)
 
-  cat("Mean value:", mean_val, "Standard Deviation:", std_dev, "\n")
-
-  # Check for NA values or no variation (std_dev == 0)
-  if (is.na(mean_val) || is.na(std_dev) || std_dev == 0) {
-    cat("No variation, NA, or constant raster values\n")
-    return(r)
+## Unify Raster Coordinate Systems, Resolutions, Extents, and remove NA Values
+```{r}
+process_and_standardize_rasters <- function(raster_list, cropbox, resolution) {
+  # Extract extent, CRS, and calculate rows and columns from cropbox
+  bbox <- st_bbox(cropbox)
+  target_extent <- as(extent(bbox), "Extent")
+  target_crs <- st_crs(cropbox)$proj4string
+  nrows <- ceiling((bbox["ymax"] - bbox["ymin"]) / resolution)
+  ncols <- ceiling((bbox["xmax"] - bbox["xmin"]) / resolution)
+  
+  # Create an empty template raster with the specified extent, resolution, and CRS
+  template_raster <- raster(nrows=nrows, ncols=ncols, xmn=bbox["xmin"], xmx=bbox["xmax"], ymn=bbox["ymin"], ymx=bbox["ymax"], crs=target_crs)
+  
+  standardized_rasters <- list() # Initialize list for standardized rasters
+  
+  for (i in seq_along(raster_list)) {
+    current_raster <- raster_list[[i]]
+    
+    # Reproject to match the target CRS
+    if (!compareCRS(crs(current_raster), target_crs)) {
+      current_raster <- projectRaster(current_raster, crs = target_crs)
+    }
+    
+    # Resample to match target resolution and extent, using bilinear interpolation
+    current_raster <- resample(current_raster, template_raster, method = "bilinear")
+    
+    # Crop to match the target extent
+    current_raster <- crop(current_raster, target_extent)
+    
+    # Replace NA values with 0
+    current_raster[is.na(getValues(current_raster))] <- 0
+    
+    # Add to list of standardized rasters
+    standardized_rasters[[i]] <- current_raster
   }
-
-  # Apply z-score normalization
-  normalized_raster <- calc(r, fun = function(x) {(x - mean_val) / std_dev})
-  # Replace NaN values with NA if any
-  normalized_raster[is.nan(normalized_raster)] <- NA
-  return(normalized_raster)
+  
+  names(standardized_rasters) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP")
+  
+  return(standardized_rasters)
 }
-```
 
-## Normalize all rasters (z-score)
-```{r}
-# Run function for raster_list
-raster_list <- lapply(raster_list, normalize_zscore)
+raster_list <- process_and_standardize_rasters(raster_list, cropbox, resolution)
 
 ```
 
-## Plot Rasters for Visual Inspection
-```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-plot(raster_list$LCC_Probability)
-plot(raster_list$BII)
-plot(raster_list$Climate_Hazards)
-plot(raster_list$pop2020)
-plot(raster_list$UrbanProbability)
-```
-```{r}
-# # Assuming raster_list$BII is your RasterLayer
-# bii_raster <- raster_list$BII
+## Filter Land Cover Type Probability by Predicted Change (in development)
+```{r, fig.width=10}
+lc_2023 <- raster_list$lc_2023
+lc_2050 <- raster_list$lc_2050
+
+# Initialize lc_change with the same dimensions as lc_2023, filled with zeros
+lc_change <- setValues(lc_2023, getValues(lc_2023) * 0)
+
+# Applying conditions for lc_change
+values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 1] <- 0 # if 2023 is forest and 2050 is forest, no change
+values(lc_change)[values(lc_2023) == 2 & (values(lc_2050) == 1 | values(lc_2050) == 2)] <- 0 # if 2023 is other and 2050 is forest or other, no change
+values(lc_change)[(values(lc_2023) == 3 | values(lc_2050) == 4)] <- 0 # if 2023 is urban or water, no change
+values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 2] <- 2 # if 2023 is forest and 2050 is other, change to other
+values(lc_change)[(values(lc_2023) == 2 & values(lc_2050) == 3) | (values(lc_2023) == 1 & values(lc_2050) == 3)] <- 1 # if 2023 is forest or other and 2050 is urban, change to urban
+
+# Initialize LCC_Probability with UrbanProbability dimensions and values
+LCC_Probability <- (lc_change * 0)
+
+# # Assigning penalized probabilities for non-urban, non-other pixels
+# penalty_factor <- 0.1
 # 
-# # Extract the values from the raster (excluding NA values)
-# bii_values <- getValues(bii_raster)
+# # For cells where the change is not urban - assign half probability
+# nonUrbanChangeIndices <- which(values(lc_change) != 1) # Get the indices of the cells where the change is not urban
+# values(LCC_Probability)[nonUrbanChangeIndices] <- values(UrbanProbability)[nonUrbanChangeIndices] * penalty_factor # Adjust these probabilities
 # 
-# # Plot the histogram
-# hist(bii_values, main = "Histogram of BII Values", xlab = "BII Value", ylab = "Frequency", col = "blue")
+# # For cells where the change is not other - assign half probability
+# nonOtherChangeIndices <- which(values(lc_change) != 2) # Get the indices of the cells where the change is not urban
+# values(LCC_Probability)[nonOtherChangeIndices] <- values(OtherProbability)[nonOtherChangeIndices] * penalty_factor # Adjust these probabilities
+
+
+# # Log-Adjusted Probabilities (not predicted change class)
+# # Process for non-urban changes
+# nonUrbanChangeIndices <- which(values(lc_change) != 1)  # Indices where change is not urban
+# urbanProbValues <- values(UrbanProbability)[nonUrbanChangeIndices]  # Urban probabilities at those indices
+# urbanProbValues[urbanProbValues > 0] <- log(urbanProbValues[urbanProbValues > 0])  # Log transform non-zero values
+# values(LCC_Probability)[nonUrbanChangeIndices] <- urbanProbValues  # Update LCC_Probability for non-urban indices
+# 
+# # Process for non-other changes
+# nonOtherChangeIndices <- which(values(lc_change) != 2)  # Indices where change is not other
+# otherProbValues <- values(OtherProbability)[nonOtherChangeIndices]  # Other probabilities at those indices
+# otherProbValues[otherProbValues > 0] <- log(otherProbValues[otherProbValues > 0])  # Log transform non-zero values
+# values(LCC_Probability)[nonOtherChangeIndices] <- otherProbValues  # Correctly update LCC_Probability for non-other indices
+
+
+
+## Assigning probabilities by predicted land cover change class
+# For changes to urban, use the precise indexing approach
+urbanChangeIndices <- which(values(lc_change) == 1) # Get the indices of the cells where the change is urban
+values(LCC_Probability)[urbanChangeIndices] <- values(UrbanProbability)[urbanChangeIndices] # Assign the probability of urban change to the corresponding cells
+
+# For changes to other, apply the same indexing approach
+otherChangeIndices <- which(values(lc_change) == 2) # Get the indices of the cells where the change is other
+values(LCC_Probability)[otherChangeIndices] <- values(OtherProbability)[otherChangeIndices] # Assign the probability of other change to the corresponding cells
+unique(lc_change)
+
+# Calculating change_binary
+# change_binary <- LCC_Probability # Initialize change_binary with LCC_Probability
+# change_binary[getValues(LCC_Probability) > 0] <- 1 # if LCC_Probability > 0, assign 1
+# change_binary[getValues(LCC_Probability) <= 0] <- 0 # if LCC_Probability <= 0, assign 0
+
+# Add LCC_Probability to the raster_list
+raster_list$LCC_Probability <- LCC_Probability
+
+
+# urban_binary <- lc_2050 == 3
+
+# Optionally, if you want to keep the names consistent and in a specific order, you can rename all at once
+names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP", "LCC_Probability")
 
 ```
 
+```{r}
+plot(LCC_Probability, col=viridis(100))
+```
+
+
+## Normalize all rasters
+```{r}
+# Apply the normalization function to each raster layer in the list
+normalized_layers <- lapply(raster_list, function(layer) {
+  norm(layer)
+})
+raster_list <- normalized_layers
+names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP", "LCC_Probability")
+```
+
+## Plot Input Rasters
+```{r, fig.width=10}
+# Convert the Raster list to a stack
+raster_stack <- stack(normalized_layers)
+plot(raster_stack, col=viridis::viridis(100))
+```
 ## Generate Interaction Rasters
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+#URBAN PROBABILITY
+UrbanProbability <- raster_list$UrbanProbability
+
+#BIO RISK
 # Multiply LCC_Probability and BII
-Bio_Loss_Risk <- raster_list$BII * raster_list$LCC_Probability
+Bio_Loss_Risk <- norm(raster_list$BII * raster_list$OtherProbability)
 
-# Multiply Climate_Hazards and pop2020
-Climate_Impact_Risk <- raster_list$pop2020 * raster_list$Climate_Hazards
+#CLIMATE RISK
+#Generate Climate Risk Raster
+Climate_Hazards <- norm(raster_list$Flood_Probability * raster_list$Heat_Probability)
 
-# Normalize the interaction rasters
-Bio_Loss_Risk_norm <- normalize_minmax(Bio_Loss_Risk)
-Climate_Impact_Risk_norm <- normalize_minmax(Climate_Impact_Risk)
-UrbanProbability_norm <- normalize_minmax(standardized_rasters$UrbanProbability)
+#Generate vulnerability-adjusted population raster
+GDP_Inverse <- (1 - raster_list$GDP)
+Population_Vulnerability <- norm(raster_list$population * GDP_Inverse)
+
+# Multiply Vulnerability-adjusted population and Climate_Hazards
+Climate_Impact_Risk <- norm(Population_Vulnerability * Climate_Hazards)
 
 ```
 
 ## Overlay Rasters to Produce 'Stoplight For Urban Development'
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # Weighted Overlay Calculation
-Hotspot_Stoplight <- normalize_zscore(UrbanProbability_norm - Bio_Loss_Risk_norm - Climate_Impact_Risk_norm)
+Hotspot_Stoplight <- norm(UrbanProbability - Bio_Loss_Risk - Climate_Impact_Risk)
 ```
 
-# Plots
-<br>
+interpret climate risk index by excluding zero or very near zero values and then determining the percentiles from there
 
-```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-# Extract Min and Max Values
-min_val <- cellStats(Climate_Impact_Risk_norm, stat = 'min', na.rm = TRUE)
-max_val <- cellStats(Climate_Impact_Risk_norm, stat = 'max', na.rm = TRUE)
 
-# Check if min_val and max_val are finite
-if (is.finite(min_val) && is.finite(max_val)) {
+# PLOTS
+# Define Plot Function
+```{r}
+# Define plot and export function
+plotRasterWithFisherBreaks <- function(raster_data, plot_title) {
+  # Extract Min and Max Values
+  min_val <- cellStats(raster_data, stat = 'min')
+  max_val <- cellStats(raster_data, stat = 'max')
+
+  # Check if min_val and max_val are finite
+  if (is.finite(min_val) && is.finite(max_val)) {
     # Determine the number of breaks
-    num_breaks <- 255
-
-    # Create a sequence of equally spaced breaks
-    breaks <- seq(min_val, max_val, length.out = num_breaks)
-
-    # Plot the raster using the defined color ramp
-    levelplot(Climate_Impact_Risk_norm, col.regions=magma(num_breaks), at=breaks, main="Climate Impact Risk Index")
-} else {
+    num_breaks <- 9  # Adjust the number of breaks as needed
+    
+    # Calculate Fisher breaks
+    values <- getValues(raster_data)
+    if (!is.null(values)) { # Ensure values were successfully retrieved
+      fisher_breaks <- classIntervals(values, n = num_breaks, style = "fisher")$brks
+      
+      # Plot preparation without opening the jpeg device
+      plot_func <- function() {
+        plot(raster_data, col=inferno(length(fisher_breaks)-1), breaks=fisher_breaks, main=plot_title)
+      }
+      
+      # Display plot in R environment
+      plot_func()
+      
+      # Save plot to JPEG
+      jpeg(paste0(plot_title, ".jpg"), width = 3840, height = 2160, res = 300)
+      plot_func()  # Re-run plotting function to save to file
+      dev.off()  # Close the jpeg device
+    } else {
+      cat("Failed to retrieve values from raster or raster contains only NA values.\n")
+    }
+  } else {
     cat("Raster contains non-finite or NA values only\n")
+  }
 }
+
 
 ```
 
-```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-# Extract Min and Max Values
-min_val <- cellStats(Bio_Loss_Risk_norm, stat = 'min', na.rm = TRUE)
-max_val <- cellStats(Bio_Loss_Risk_norm, stat = 'max', na.rm = TRUE)
-
-# Check if min_val and max_val are finite
-if (is.finite(min_val) && is.finite(max_val)) {
-    # Determine the number of breaks
-    num_breaks <- 255
-    # Create a sequence of equally spaced breaks
-    breaks <- seq(min_val, max_val, length.out = num_breaks)
-
-    # Plot the raster using the defined color ramp
-    levelplot(Bio_Loss_Risk_norm, col.regions=magma(num_breaks), at=breaks, main="Biodiversity Loss Risk Index")
-} else {
-    cat("Raster contains non-finite or NA values only\n")
-}
-
+```{r, fig.width=8, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+setwd(outputs)
+plotRasterWithFisherBreaks(raster_list$Flood_Probability, "Normalized Flood Hazard  Probability of Detectable Surface Water")
+plotRasterWithFisherBreaks(raster_list$Heat_Probability, "Normalized Heat Hazard  Median of 5 Hottest Recorded Temperatures")
+plotRasterWithFisherBreaks(Climate_Hazards, "Normalized Climate Hazards  Normalized Flood Hazard x Normalized Heat Hazard")
+plotRasterWithFisherBreaks(raster_list$population, "Normalized Population:  CIESIN High Resolution Settlement Layer")
+plotRasterWithFisherBreaks(raster_list$GDP, "Normalized Gridded GDP  Global Electric Consumption revised GDP")
+plotRasterWithFisherBreaks(Population_Vulnerability, "Normalized Population Vulnerability  Population x (1- GDP)")
+plotRasterWithFisherBreaks(Climate_Impact_Risk, "Climate Impact Risk Index  Normalized Climate Hazards x Normalized Population Vulnerability")
 ```
 
-```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-# Extract Min and Max Values
-min_val <- cellStats(UrbanProbability_norm, stat = 'min', na.rm = TRUE)
-max_val <- cellStats(UrbanProbability_norm, stat = 'max', na.rm = TRUE)
-
-# Check if min_val and max_val are finite
-if (is.finite(min_val) && is.finite(max_val)) {
-    # Determine the number of breaks
-    num_breaks <- 255
-
-    # Create a sequence of equally spaced breaks
-    breaks <- seq(min_val, max_val, length.out = num_breaks)
-
-    # Plot the raster using the defined color ramp
-    levelplot(UrbanProbability_norm, col.regions=magma(num_breaks), at=breaks, main="Urban Probability - Random Forest Model")
-} else {
-    cat("Raster contains non-finite or NA values only\n")
-}
-
+```{r, fig.width=8, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+setwd(outputs)
+plotRasterWithFisherBreaks(raster_list$BII, "Biodiversity Intactness Index")
+# plotRasterWithFisherBreaks(raster_list$LCC_Probability, "Land Cover Change Probability")
+plotRasterWithFisherBreaks(raster_list$OtherProbability, "Land Cover Change Probability")
+plotRasterWithFisherBreaks(Bio_Loss_Risk, "Biodiversity Loss Risk Index  Biodiversity Intactness Index x Land Cover Change Probability")
+plotRasterWithFisherBreaks(UrbanProbability, "Urban Probability Index")
 ```
 
 ## Hotspot Stoplight Raster
-```{r, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-# Define the green-yellow-red color ramp
-color_ramp <- colorRampPalette(c("red", "yellow", "darkgreen"))
+```{r, fig.width=8, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
+# Define plot and export function
+STOPLIGHTplotRasterWithFisherBreaks <- function(raster_data, plot_title) {
+  # Define the green-yellow-red color ramp
+color_ramp <- colorRampPalette(c("#a80000", "orange", 'yellow', "#328232"))
 
 # Extract Min and Max Values
-min_val <- cellStats(Hotspot_Stoplight, stat = 'min', na.rm = TRUE)
-max_val <- cellStats(Hotspot_Stoplight, stat = 'max', na.rm = TRUE)
+  min_val <- cellStats(raster_data, stat = 'min')
+  max_val <- cellStats(raster_data, stat = 'max')
 
-# Check if min_val and max_val are finite
-if (is.finite(min_val) && is.finite(max_val)) {
+  # Check if min_val and max_val are finite
+  if (is.finite(min_val) && is.finite(max_val)) {
     # Determine the number of breaks
-    num_breaks <- 255
-
-    # Create a sequence of equally spaced breaks
-    breaks <- seq(min_val, max_val, length.out = num_breaks)
-
-    # Plot the raster using the defined color ramp
-    plot(Hotspot_Stoplight, col=color_ramp(num_breaks), breaks=breaks, main="Hotspot Stoplight - Integrated Development Risk Index")
-} else {
+    num_breaks <- 9  # Adjust the number of breaks as needed
+    
+    # Calculate Fisher breaks
+    values <- getValues(raster_data)
+    if (!is.null(values)) { # Ensure values were successfully retrieved
+      fisher_breaks <- classIntervals(values, n = num_breaks, style = "fisher")$brks
+      
+      # Plot preparation without opening the jpeg device
+      plot_func <- function() {
+        plot(raster_data, col=color_ramp(length(fisher_breaks)-1), breaks=fisher_breaks, main=plot_title)
+      }
+      
+      # Display plot in R environment
+      plot_func()
+      
+      # Save plot to JPEG
+      jpeg(paste0(plot_title, ".jpg"), width = 3840, height = 2160, res = 300)
+      plot_func()  # Re-run plotting function to save to file
+      dev.off()  # Close the jpeg device
+    } else {
+      cat("Failed to retrieve values from raster or raster contains only NA values.\n")
+    }
+  } else {
     cat("Raster contains non-finite or NA values only\n")
+  }
 }
 
+setwd(outputs)
+STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight, "Integrated Development Risk Index")
+
 ```
+```{r}
+# # Calculate the 75th percentile, which is the cutoff for the top 25% of the data
+# q4_cutoff <- quantile(Bio_Loss_Risk, probs = 0.75, na.rm = TRUE)
+# 
+# # Preserve only the Q4 values, set everything else to NA
+# Bio_Loss_Risk_Q4 <- calc(Bio_Loss_Risk, function(x) { 
+#   x[x <= q4_cutoff] <- NA
+#   return(x)
+# })
+# 
+# # Calculate the 75th percentile, which is the cutoff for the top 25% of the data
+# q4_cutoff <- quantile(Climate_Impact_Risk, probs = 0.75, na.rm = TRUE)
+# 
+# # Preserve only the Q4 values, set everything else to NA
+# Climate_Impact_Risk_Q4 <- calc(Climate_Impact_Risk, function(x) { 
+#   x[x <= q4_cutoff] <- NA
+#   return(x)
+# })
+# 
+# plot(Bio_Loss_Risk_Q4)
+# plot(Climate_Impact_Risk_Q4)
+
+```
+```{r}
+# # Calculate the 75th percentile, which is the cutoff for the top 25% of the data
+# cutoff_90 <- quantile(Bio_Loss_Risk, probs = 0.90, na.rm = TRUE)
+# 
+# # Preserve only the Q4 values, set everything else to NA
+# Bio_Loss_Risk_90 <- calc(Bio_Loss_Risk, function(x) { 
+#   x[x <= cutoff_90] <- NA
+#   return(x)
+# })
+# 
+# # Calculate the 75th percentile, which is the cutoff for the top 25% of the data
+# cutoff_90 <- quantile(Climate_Impact_Risk, probs = 0.90, na.rm = TRUE)
+# 
+# # Preserve only the Q4 values, set everything else to NA
+# Climate_Impact_Risk_90 <- calc(Climate_Impact_Risk, function(x) { 
+#   x[x <= cutoff_90] <- NA
+#   return(x)
+# })
+# 
+# plot(Bio_Loss_Risk_90)
+# plot(Climate_Impact_Risk_90)
+
+```
+
+
 ## Data Distributions
-
-
-
 ```{r}
 # Extract the values from the raster (excluding NA values)
-Climate_Impact_RiskVals <- getValues(Climate_Impact_Risk_norm)
-Bio_Loss_RiskVals <- getValues(Bio_Loss_Risk_norm)
-UrbanProbabilityVals <- getValues(UrbanProbability_norm)
+Climate_Impact_RiskVals <- getValues(Climate_Impact_Risk)
+Bio_Loss_RiskVals <- getValues(Bio_Loss_Risk)
+UrbanProbabilityVals <- getValues(UrbanProbability)
 HotspotStoplightVals <- getValues(Hotspot_Stoplight)
 
 # Plot the histograms
@@ -431,36 +542,108 @@ hist(UrbanProbabilityVals, main = "Histogram of Urban Probability Values", xlab 
 hist(HotspotStoplightVals, main = "Histogram of Hotspot Stoplight Values", xlab = "Suitability", ylab = "Frequency", col = "blue")
 
 ```
+```{r}
+# Create a new raster with zeros replaced by NA
+Bio_Loss_Risk_NullZeros <- Bio_Loss_Risk
+Bio_Loss_Risk_NullZeros[Bio_Loss_Risk_NullZeros == 0] <- NA
 
-## Export Datasets for Further Analysis
+Bio_Loss_Risk_NullZeros_Vals <- getValues(Bio_Loss_Risk_NullZeros)
+hist(Bio_Loss_Risk_NullZeros_Vals, main = "Histogram of Biodiversity Loss Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
+hist(Bio_Loss_RiskVals, main = "Histogram of Biodiversity Loss Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
+
+Climate_Impact_Risk_NullZeros <- Climate_Impact_Risk
+Climate_Impact_Risk_NullZeros[Climate_Impact_Risk_NullZeros == 0] <- NA
+
+Climate_Impact_Risk_NullZeros_Vals <- getValues(Climate_Impact_Risk_NullZeros)
+hist(Climate_Impact_Risk_NullZeros_Vals, main = "Histogram of Climate Impact Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
+hist(Climate_Impact_RiskVals, main = "Histogram of Climate Impact Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
+
+
+```
+#Summarize Datasets within GAM Municipal Boundaries
+```{r}
+# # Check and Align CRS
+# # Check CRS of both layers
+# rasterLayer <- Climate_Impact_Risk_Q4
+# 
+# # # Identify invalid polygons
+# # invalid <- !st_is_valid(muni)
+# # 
+# # # Report how many are invalid
+# # sum(invalid)
+# # 
+# # # Attempt to repair invalid polygons
+# # muni[invalid, ] <- st_make_valid(muni[invalid, ])
+# 
+# # Reproject polygons to match raster CRS if necessary
+# muni <- st_transform(muni, crs = crs(rasterLayer))
+# 
+# # Calculate Sum of Raster Values within Each Polygon and Normalize by Area
+# # Convert sf polygons to SpatialPolygonsDataFrame for compatibility with raster package
+# muni_sp <- as(muni, "Spatial")
+# 
+# # Create an empty vector to store the normalized sum values
+# normalized_sums <- vector("numeric", length = nrow(muni))
+# summary(normalized_sums)
+# 
+# # Loop through each polygon
+# for (i in 1:length(normalized_sums)) {
+#   # Mask raster with the current polygon
+#   masked_raster <- mask(rasterLayer, muni_sp[i, ])
+#   
+#   # Calculate sum of the masked raster values
+#   sum_values <- sum(values(masked_raster), na.rm = TRUE)
+#   
+#   # Calculate the area of the polygon (in the same units as the raster)
+#   area_polygon <- st_area(muni[i, ])
+#   
+#   # Normalize sum by area and assign to the vector
+#   normalized_sums[i] <- sum_values / as.numeric(area_polygon)
+# }
+# 
+# # Add the normalized sums to the polygons data frame
+# muni$normalized_sum <- normalized_sums
+# 
+# 
+# # For the polygons
+# print(st_bbox(muni))
+# 
+# # For the raster
+# print(extent(rasterLayer))
+```
+
+
+
+
+## Export Datasets for Further Analysis and Visualization
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # HOTSPOT STOPLIGHT
 # Export the raster as a TIFF
-# setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5a_30m')
-setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5_60m')
+setwd(outputs)
 
 # Save the final raster
 writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight_2024.tif", overwrite=TRUE)
 
 # INTERMEDIATE INDICES
-# Export the raster as a TIFF
-# setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5a_30m')
-setwd('/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5_60m')
-
 # Save the final rasters
-writeRaster(Bio_Loss_Risk_norm, "BioRiskNorm.tif", overwrite=TRUE)
-writeRaster(Climate_Impact_Risk_norm, "AnthroRiskNorm.tif", overwrite=TRUE)
-writeRaster(UrbanProbability_norm, "UrbanProbability.tif", overwrite=TRUE)
+writeRaster(Bio_Loss_Risk, "BioRiskNorm.tif", overwrite=TRUE)
+writeRaster(Climate_Impact_Risk, "AnthroRiskNorm.tif", overwrite=TRUE)
+writeRaster(UrbanProbability, "UrbanProbability.tif", overwrite=TRUE)
+writeRaster(LCC_Probability, "LCC_Probability.tif", overwrite=TRUE)
+
+# FORMATTED INPUT DATASETS
+writeRaster(raster_list$BII, "BII.tif", overwrite=TRUE)
+writeRaster(raster_list$population, "population.tif", overwrite=TRUE)
+writeRaster(raster_list$OtherProbability, "OtherProbability.tif", overwrite=TRUE)
+writeRaster(raster_list$GDP, "GDP.tif", overwrite=TRUE)
+writeRaster(Climate_Hazards, "Climate_Hazards.tif", overwrite=TRUE)
+writeRaster(raster_list$Flood_Probability, "Flood_Hazards.tif", overwrite=TRUE)
+writeRaster(raster_list$Heat_Probability, "Heat_Hazards.tif", overwrite=TRUE)
+
+# THRESHOLD RASTERS
+# writeRaster(Bio_Loss_Risk_90, "BioRisk90.tif", overwrite=TRUE)
+# writeRaster(Climate_Impact_Risk_90, "AnthroRisk90.tif", overwrite=TRUE)
+# writeRaster(Bio_Loss_Risk_Q4, "Bio_Loss_Risk_Q4", overwrite=TRUE)
+# writeRaster(Climate_Impact_Risk_Q4, "Climate_Impact_Risk_Q4", overwrite=TRUE)
+
 ```
-
-
-
-```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-# # Capture the end time
-# end_time <- Sys.time()
-# 
-# # Calculate and print the runtime
-# runtime <- end_time - start_time
-# print(paste("Total runtime:", runtime))
-```
-
