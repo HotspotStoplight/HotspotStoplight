@@ -75,7 +75,9 @@ resolution <- (resolution/30)/3600
 # Base directory
 inputs <- '/Users/oliveratwood/Documents/GitHub/HotspotStoplight/LandCoverChange/data/outputs/cropped/crop5c_30m/'
 
-outputs <- "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/LandCoverChange/data/outputs/cropped/crop5c_30m"
+outputs <- "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/LandCoverChange/data/outputs/cropped/crop5c_30m/"
+
+plot_dir <- '/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5c_30m/'
 
 # Load the raster datasets
 lc_2023 <- raster(paste0(inputs, 'lc_2023.tif'))
@@ -415,7 +417,8 @@ plotRasterWithFisherBreaks <- function(raster_data, plot_title) {
 ```
 
 ```{r, fig.width=8, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-setwd(outputs)
+setwd(plot_dir)
+
 plotRasterWithFisherBreaks(raster_list$Flood_Probability, "Normalized Flood Hazard  Probability of Detectable Surface Water")
 plotRasterWithFisherBreaks(raster_list$Heat_Probability, "Normalized Heat Hazard  Median of 5 Hottest Recorded Temperatures")
 plotRasterWithFisherBreaks(Climate_Hazards, "Normalized Climate Hazards  Normalized Flood Hazard x Normalized Heat Hazard")
@@ -426,7 +429,8 @@ plotRasterWithFisherBreaks(Climate_Impact_Risk, "Climate Impact Risk Index  Norm
 ```
 
 ```{r, fig.width=8, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
-setwd(outputs)
+setwd(plot_dir)
+
 plotRasterWithFisherBreaks(raster_list$BII, "Biodiversity Intactness Index")
 # plotRasterWithFisherBreaks(raster_list$LCC_Probability, "Land Cover Change Probability")
 plotRasterWithFisherBreaks(raster_list$OtherProbability, "Land Cover Change Probability")
@@ -475,7 +479,8 @@ color_ramp <- colorRampPalette(c("#a80000", "orange", 'yellow', "#328232"))
   }
 }
 
-setwd(outputs)
+setwd(plot_dir)
+
 STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight, "Integrated Development Risk Index")
 
 ```
@@ -503,26 +508,26 @@ STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight, "Integrated Development R
 
 ```
 ```{r}
-# # Calculate the 75th percentile, which is the cutoff for the top 25% of the data
-# cutoff_90 <- quantile(Bio_Loss_Risk, probs = 0.90, na.rm = TRUE)
-# 
-# # Preserve only the Q4 values, set everything else to NA
-# Bio_Loss_Risk_90 <- calc(Bio_Loss_Risk, function(x) { 
-#   x[x <= cutoff_90] <- NA
-#   return(x)
-# })
-# 
-# # Calculate the 75th percentile, which is the cutoff for the top 25% of the data
-# cutoff_90 <- quantile(Climate_Impact_Risk, probs = 0.90, na.rm = TRUE)
-# 
-# # Preserve only the Q4 values, set everything else to NA
-# Climate_Impact_Risk_90 <- calc(Climate_Impact_Risk, function(x) { 
-#   x[x <= cutoff_90] <- NA
-#   return(x)
-# })
-# 
-# plot(Bio_Loss_Risk_90)
-# plot(Climate_Impact_Risk_90)
+# Calculate the 75th percentile, which is the cutoff for the top 25% of the data
+cutoff_90 <- quantile(Bio_Loss_Risk, probs = 0.90, na.rm = TRUE)
+
+# Preserve only the Q4 values, set everything else to NA
+Bio_Loss_Risk_90 <- calc(Bio_Loss_Risk, function(x) {
+  x[x <= cutoff_90] <- NA
+  return(x)
+})
+
+# Calculate the 75th percentile, which is the cutoff for the top 25% of the data
+cutoff_90 <- quantile(Climate_Impact_Risk, probs = 0.90, na.rm = TRUE)
+
+# Preserve only the Q4 values, set everything else to NA
+Climate_Impact_Risk_90 <- calc(Climate_Impact_Risk, function(x) {
+  x[x <= cutoff_90] <- NA
+  return(x)
+})
+
+plot(Bio_Loss_Risk_90)
+plot(Climate_Impact_Risk_90)
 
 ```
 
@@ -636,14 +641,15 @@ writeRaster(raster_list$BII, "BII.tif", overwrite=TRUE)
 writeRaster(raster_list$population, "population.tif", overwrite=TRUE)
 writeRaster(raster_list$OtherProbability, "OtherProbability.tif", overwrite=TRUE)
 writeRaster(raster_list$GDP, "GDP.tif", overwrite=TRUE)
+writeRaster(Population_Vulnerability, "PopVulnerability.tif", overwrite=TRUE)
 writeRaster(Climate_Hazards, "Climate_Hazards.tif", overwrite=TRUE)
 writeRaster(raster_list$Flood_Probability, "Flood_Hazards.tif", overwrite=TRUE)
 writeRaster(raster_list$Heat_Probability, "Heat_Hazards.tif", overwrite=TRUE)
 
 # THRESHOLD RASTERS
-# writeRaster(Bio_Loss_Risk_90, "BioRisk90.tif", overwrite=TRUE)
-# writeRaster(Climate_Impact_Risk_90, "AnthroRisk90.tif", overwrite=TRUE)
-# writeRaster(Bio_Loss_Risk_Q4, "Bio_Loss_Risk_Q4", overwrite=TRUE)
-# writeRaster(Climate_Impact_Risk_Q4, "Climate_Impact_Risk_Q4", overwrite=TRUE)
+writeRaster(Bio_Loss_Risk_90, "BioRisk90.tif", overwrite=TRUE)
+writeRaster(Climate_Impact_Risk_90, "AnthroRisk90.tif", overwrite=TRUE)
+writeRaster(Bio_Loss_Risk_Q4, "Bio_Loss_Risk_Q4", overwrite=TRUE)
+writeRaster(Climate_Impact_Risk_Q4, "Climate_Impact_Risk_Q4", overwrite=TRUE)
 
 ```
