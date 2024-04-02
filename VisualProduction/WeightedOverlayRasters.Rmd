@@ -182,10 +182,11 @@ cropbox <- st_read("https://raw.githubusercontent.com/HotspotStoplight/HotspotSt
 # GDP <- raster(temp)
 
 # List of raster variables
-raster_list = list(BII, Flood_Probability, Heat_Probability, population, UrbanProbability, OtherProbability, lc_2023, lc_2050, GDP)
+raster_list = list(BII, Flood_Probability, Heat_Probability, population, UrbanProbability, OtherProbability, GDP)
+lc_rasters = list(lc_2023, lc_2050)
 
 ```
-## Define Normalization Functions (MIN-MAX)
+## Define Normalization Function (MIN-MAX)
 ```{r}
 norm <- function(raster) {
   # Calculate the minimum and maximum values of the raster
@@ -208,7 +209,7 @@ norm <- function(raster) {
 
 ## Unify Raster Coordinate Systems, Resolutions, Extents, and remove NA Values
 ```{r}
-process_and_standardize_rasters <- function(raster_list, cropbox, resolution) {
+unify_noncategorical <- function(raster_list, cropbox, resolution) {
   # Extract extent, CRS, and calculate rows and columns from cropbox
   bbox <- st_bbox(cropbox)
   target_extent <- as(extent(bbox), "Extent")
@@ -218,56 +219,90 @@ process_and_standardize_rasters <- function(raster_list, cropbox, resolution) {
   
   # Create an empty template raster with the specified extent, resolution, and CRS
   template_raster <- raster(nrows=nrows, ncols=ncols, xmn=bbox["xmin"], xmx=bbox["xmax"], ymn=bbox["ymin"], ymx=bbox["ymax"], crs=target_crs)
-  
   standardized_rasters <- list() # Initialize list for standardized rasters
   
   for (i in seq_along(raster_list)) {
     current_raster <- raster_list[[i]]
-    
     # Reproject to match the target CRS
     if (!compareCRS(crs(current_raster), target_crs)) {
       current_raster <- projectRaster(current_raster, crs = target_crs)
     }
-    
     # Resample to match target resolution and extent, using bilinear interpolation
     current_raster <- resample(current_raster, template_raster, method = "bilinear")
-    
     # Crop to match the target extent
     current_raster <- crop(current_raster, target_extent)
-    
     # Replace NA values with 0
     current_raster[is.na(getValues(current_raster))] <- 0
-    
     # Add to list of standardized rasters
     standardized_rasters[[i]] <- current_raster
   }
   
-  names(standardized_rasters) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP")
+  names(standardized_rasters) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "GDP")
   
   return(standardized_rasters)
 }
 
-raster_list <- process_and_standardize_rasters(raster_list, cropbox, resolution)
+raster_list <- unify_noncategorical(raster_list, cropbox, resolution)
+
+```
+
+```{r}
+unify_categorical <- function(raster_list, cropbox, resolution) {
+  # Extract extent, CRS, and calculate rows and columns from cropbox
+  bbox <- st_bbox(cropbox)
+  target_extent <- as(extent(bbox), "Extent")
+  target_crs <- st_crs(cropbox)$proj4string
+  nrows <- ceiling((bbox["ymax"] - bbox["ymin"]) / resolution)
+  ncols <- ceiling((bbox["xmax"] - bbox["xmin"]) / resolution)
+  
+  # Create an empty template raster with the specified extent, resolution, and CRS
+  template_raster <- raster(nrows=nrows, ncols=ncols, xmn=bbox["xmin"], xmx=bbox["xmax"], ymn=bbox["ymin"], ymx=bbox["ymax"], crs=target_crs)
+  standardized_rasters <- list() # Initialize list for standardized rasters
+  
+  for (i in seq_along(raster_list)) {
+    current_raster <- raster_list[[i]]
+    # Reproject to match the target CRS
+    if (!compareCRS(crs(current_raster), target_crs)) {
+      current_raster <- projectRaster(current_raster, crs = target_crs)
+    }
+    # Resample to match target resolution and extent, using nearest neighbor interpolation
+    current_raster <- resample(current_raster, template_raster, method = "ngb")
+    # Crop to match the target extent
+    current_raster <- crop(current_raster, target_extent)
+    # Replace NA values with 0
+    current_raster[is.na(getValues(current_raster))] <- 0
+    # Add to list of standardized rasters
+    standardized_rasters[[i]] <- current_raster
+  }
+  
+  names(standardized_rasters) <- c("lc_2023", "lc_2050")
+  
+  return(standardized_rasters)
+}
+
+lc_rasters <- unify_categorical(lc_rasters, cropbox, resolution)
 
 ```
 
 ## Filter Land Cover Type Probability by Predicted Change (in development)
 ```{r, fig.width=10}
-lc_2023 <- raster_list$lc_2023
-lc_2050 <- raster_list$lc_2050
+# lc_2023 <- raster_list$lc_2023
+# lc_2050 <- raster_list$lc_2050
 
-# Initialize lc_change with the same dimensions as lc_2023, filled with zeros
-lc_change <- setValues(lc_2023, getValues(lc_2023) * 0)
+# # Initialize lc_change with the same dimensions as lc_2023, filled with zeros
+# lc_change <- setValues(lc_2023, getValues(lc_2023) * 0)
+# 
+# # Applying conditions for lc_change
+# values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 1] <- 0 # if 2023 is forest and 2050 is forest, no change
+# values(lc_change)[values(lc_2023) == 2 & (values(lc_2050) == 1 | values(lc_2050) == 2)] <- 0 # if 2023 is other and 2050 is forest or other, no change
+# values(lc_change)[(values(lc_2023) == 3 | values(lc_2050) == 4)] <- 0 # if 2023 is urban or water, no change
+# values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 2] <- 2 # if 2023 is forest and 2050 is other, change to other
+# values(lc_change)[(values(lc_2023) == 2 & values(lc_2050) == 3) | (values(lc_2023) == 1 & values(lc_2050) == 3)] <- 1 # if 2023 is forest or other and 2050 is urban, change to urban
 
-# Applying conditions for lc_change
-values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 1] <- 0 # if 2023 is forest and 2050 is forest, no change
-values(lc_change)[values(lc_2023) == 2 & (values(lc_2050) == 1 | values(lc_2050) == 2)] <- 0 # if 2023 is other and 2050 is forest or other, no change
-values(lc_change)[(values(lc_2023) == 3 | values(lc_2050) == 4)] <- 0 # if 2023 is urban or water, no change
-values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 2] <- 2 # if 2023 is forest and 2050 is other, change to other
-values(lc_change)[(values(lc_2023) == 2 & values(lc_2050) == 3) | (values(lc_2023) == 1 & values(lc_2050) == 3)] <- 1 # if 2023 is forest or other and 2050 is urban, change to urban
 
-# Initialize LCC_Probability with UrbanProbability dimensions and values
-LCC_Probability <- (lc_change * 0)
+
+# Initialize LCC_Probability with lc_2023 dimensions and values
+# LCC_Probability <- (lc_2023 * 0)
 
 # # Assigning penalized probabilities for non-urban, non-other pixels
 # penalty_factor <- 0.1
@@ -275,58 +310,72 @@ LCC_Probability <- (lc_change * 0)
 # # For cells where the change is not urban - assign half probability
 # nonUrbanChangeIndices <- which(values(lc_change) != 1) # Get the indices of the cells where the change is not urban
 # values(LCC_Probability)[nonUrbanChangeIndices] <- values(UrbanProbability)[nonUrbanChangeIndices] * penalty_factor # Adjust these probabilities
-# 
+
 # # For cells where the change is not other - assign half probability
 # nonOtherChangeIndices <- which(values(lc_change) != 2) # Get the indices of the cells where the change is not urban
 # values(LCC_Probability)[nonOtherChangeIndices] <- values(OtherProbability)[nonOtherChangeIndices] * penalty_factor # Adjust these probabilities
 
 
-# # Log-Adjusted Probabilities (not predicted change class)
-# # Process for non-urban changes
-# nonUrbanChangeIndices <- which(values(lc_change) != 1)  # Indices where change is not urban
-# urbanProbValues <- values(UrbanProbability)[nonUrbanChangeIndices]  # Urban probabilities at those indices
-# urbanProbValues[urbanProbValues > 0] <- log(urbanProbValues[urbanProbValues > 0])  # Log transform non-zero values
-# values(LCC_Probability)[nonUrbanChangeIndices] <- urbanProbValues  # Update LCC_Probability for non-urban indices
+# ## Assigning probabilities by predicted land cover change class
+# ChangeIndices <- which(values(lc_2023) == 1) # Get the indices of the cells where the land is currently forest
+# values(LCC_Probability)[ChangeIndices] <- values(OtherProbability)[ChangeIndices] # Assign the probability of other to the corresponding cells
 # 
-# # Process for non-other changes
-# nonOtherChangeIndices <- which(values(lc_change) != 2)  # Indices where change is not other
-# otherProbValues <- values(OtherProbability)[nonOtherChangeIndices]  # Other probabilities at those indices
-# otherProbValues[otherProbValues > 0] <- log(otherProbValues[otherProbValues > 0])  # Log transform non-zero values
-# values(LCC_Probability)[nonOtherChangeIndices] <- otherProbValues  # Correctly update LCC_Probability for non-other indices
+# ChangeIndices <- which(values(lc_2023) == 2) # Get the indices of the cells where the land is currently other
+# values(LCC_Probability)[ChangeIndices] <- values(UrbanProbability)[ChangeIndices] # Assign the probability of urban to the corresponding cells
 
 
 
-## Assigning probabilities by predicted land cover change class
-# For changes to urban, use the precise indexing approach
-urbanChangeIndices <- which(values(lc_change) == 1) # Get the indices of the cells where the change is urban
-values(LCC_Probability)[urbanChangeIndices] <- values(UrbanProbability)[urbanChangeIndices] # Assign the probability of urban change to the corresponding cells
+# ## Assigning probabilities by predicted land cover change class
+# # For changes to urban, use the precise indexing approach
+# urbanChangeIndices <- which(values(lc_change) == 1) # Get the indices of the cells where the change is urban
+# values(LCC_Probability)[urbanChangeIndices] <- values(UrbanProbability)[urbanChangeIndices] # Assign the probability of urban change to the corresponding cells
+# 
+# # For changes to other, apply the same indexing approach
+# otherChangeIndices <- which(values(lc_change) == 2) # Get the indices of the cells where the change is other
+# values(LCC_Probability)[otherChangeIndices] <- values(OtherProbability)[otherChangeIndices] # Assign the probability of other change to the corresponding cells
+# unique(lc_change)
 
-# For changes to other, apply the same indexing approach
-otherChangeIndices <- which(values(lc_change) == 2) # Get the indices of the cells where the change is other
-values(LCC_Probability)[otherChangeIndices] <- values(OtherProbability)[otherChangeIndices] # Assign the probability of other change to the corresponding cells
-unique(lc_change)
 
 # Calculating change_binary
 # change_binary <- LCC_Probability # Initialize change_binary with LCC_Probability
 # change_binary[getValues(LCC_Probability) > 0] <- 1 # if LCC_Probability > 0, assign 1
 # change_binary[getValues(LCC_Probability) <= 0] <- 0 # if LCC_Probability <= 0, assign 0
 
+# # Add LCC_Probability to the raster_list
+# raster_list$LCC_Probability <- LCC_Probability
+# 
+# # Optionally, if you want to keep the names consistent and in a specific order, you can rename all at once
+# names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP", "LCC_Probability")
+
+```
+
+
+```{r}
+# pull lc_2023 out of raster list for easier access
+lc_2023 <- lc_rasters$lc_2023
+
+# Initialize LCC_Probability with lc_2023 dimensions and values
+LCC_Probability <- lc_2023
+values(LCC_Probability) <- 0  # Set all initial values to NA
+
+# Assigning probabilities by predicted land cover change class
+# Forest to Other
+LCC_Probability[values(lc_2023) == 1] <- values(OtherProbability)[values(lc_2023) == 1]
+
+# Other to Urban
+LCC_Probability[values(lc_2023) == 2] <- values(UrbanProbability)[values(lc_2023) == 2]
+
 # Add LCC_Probability to the raster_list
 raster_list$LCC_Probability <- LCC_Probability
 
-
-# urban_binary <- lc_2050 == 3
-
 # Optionally, if you want to keep the names consistent and in a specific order, you can rename all at once
-names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP", "LCC_Probability")
+names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "GDP", "LCC_Probability")
 
 ```
 
-```{r}
-plot(LCC_Probability, col=viridis(100))
+```{r, fig.width=8}
+plot(LCC_Probability, col=inferno(100))
 ```
-
-
 ## Normalize all rasters
 ```{r}
 # Apply the normalization function to each raster layer in the list
@@ -334,7 +383,7 @@ normalized_layers <- lapply(raster_list, function(layer) {
   norm(layer)
 })
 raster_list <- normalized_layers
-names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP", "LCC_Probability")
+names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "GDP", "LCC_Probability")
 ```
 
 ## Plot Input Rasters
@@ -350,7 +399,8 @@ UrbanProbability <- raster_list$UrbanProbability
 
 #BIO RISK
 # Multiply LCC_Probability and BII
-Bio_Loss_Risk <- norm(raster_list$BII * raster_list$OtherProbability)
+Bio_Loss_Risk <- norm(raster_list$BII * raster_list$LCC_Probability)
+# Bio_Loss_Risk <- norm(raster_list$BII * raster_list$OtherProbability)
 
 #CLIMATE RISK
 #Generate Climate Risk Raster
@@ -432,8 +482,8 @@ plotRasterWithFisherBreaks(Climate_Impact_Risk, "Climate Impact Risk Index  Norm
 setwd(plot_dir)
 
 plotRasterWithFisherBreaks(raster_list$BII, "Biodiversity Intactness Index")
-# plotRasterWithFisherBreaks(raster_list$LCC_Probability, "Land Cover Change Probability")
-plotRasterWithFisherBreaks(raster_list$OtherProbability, "Land Cover Change Probability")
+plotRasterWithFisherBreaks(raster_list$LCC_Probability, "Land Cover Change Probability")
+# plotRasterWithFisherBreaks(raster_list$OtherProbability, "Land Cover Change Probability")
 plotRasterWithFisherBreaks(Bio_Loss_Risk, "Biodiversity Loss Risk Index  Biodiversity Intactness Index x Land Cover Change Probability")
 plotRasterWithFisherBreaks(UrbanProbability, "Urban Probability Index")
 ```
