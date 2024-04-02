@@ -472,7 +472,7 @@ setwd(plot_dir)
 plotRasterWithFisherBreaks(raster_list$Flood_Probability, "Normalized Flood Hazard  Probability of Detectable Surface Water")
 plotRasterWithFisherBreaks(raster_list$Heat_Probability, "Normalized Heat Hazard  Median of 5 Hottest Recorded Temperatures")
 plotRasterWithFisherBreaks(Climate_Hazards, "Normalized Climate Hazards  Normalized Flood Hazard x Normalized Heat Hazard")
-plotRasterWithFisherBreaks(raster_list$population, "Normalized Population:  CIESIN High Resolution Settlement Layer")
+plotRasterWithFisherBreaks(raster_list$population, "Normalized Population  CIESIN High Resolution Settlement Layer")
 plotRasterWithFisherBreaks(raster_list$GDP, "Normalized Gridded GDP  Global Electric Consumption revised GDP")
 plotRasterWithFisherBreaks(Population_Vulnerability, "Normalized Population Vulnerability  Population x (1- GDP)")
 plotRasterWithFisherBreaks(Climate_Impact_Risk, "Climate Impact Risk Index  Normalized Climate Hazards x Normalized Population Vulnerability")
@@ -699,7 +699,7 @@ writeRaster(raster_list$Heat_Probability, "Heat_Hazards.tif", overwrite=TRUE)
 # THRESHOLD RASTERS
 writeRaster(Bio_Loss_Risk_90, "BioRisk90.tif", overwrite=TRUE)
 writeRaster(Climate_Impact_Risk_90, "AnthroRisk90.tif", overwrite=TRUE)
-writeRaster(Bio_Loss_Risk_Q4, "Bio_Loss_Risk_Q4", overwrite=TRUE)
-writeRaster(Climate_Impact_Risk_Q4, "Climate_Impact_Risk_Q4", overwrite=TRUE)
+# writeRaster(Bio_Loss_Risk_Q4, "Bio_Loss_Risk_Q4", overwrite=TRUE)
+# writeRaster(Climate_Impact_Risk_Q4, "Climate_Impact_Risk_Q4", overwrite=TRUE)
 
 ```
