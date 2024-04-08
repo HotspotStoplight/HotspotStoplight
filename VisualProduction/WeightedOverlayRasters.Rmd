@@ -411,8 +411,9 @@ GDP_Inverse <- (1 - raster_list$GDP)
 Population_Vulnerability <- norm(raster_list$population * GDP_Inverse)
 
 # Multiply Vulnerability-adjusted population and Climate_Hazards
-Climate_Impact_Risk <- norm(Population_Vulnerability * Climate_Hazards)
-Climate_Impact_Risk_v2 <- norm(raster_list$population * Climate_Hazards)
+Climate_Impact_Risk <- norm(raster_list$population * Climate_Hazards)
+Climate_Impact_Risk_v2 <- norm(Population_Vulnerability * Climate_Hazards) # needs a higher-resolution socioeconomic dataset
+
 
 ```
 
