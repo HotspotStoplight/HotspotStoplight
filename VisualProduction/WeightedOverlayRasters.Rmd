@@ -284,72 +284,7 @@ lc_rasters <- unify_categorical(lc_rasters, cropbox, resolution)
 
 ```
 
-## Filter Land Cover Type Probability by Predicted Change (in development)
-```{r, fig.width=10}
-# lc_2023 <- raster_list$lc_2023
-# lc_2050 <- raster_list$lc_2050
-
-# # Initialize lc_change with the same dimensions as lc_2023, filled with zeros
-# lc_change <- setValues(lc_2023, getValues(lc_2023) * 0)
-# 
-# # Applying conditions for lc_change
-# values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 1] <- 0 # if 2023 is forest and 2050 is forest, no change
-# values(lc_change)[values(lc_2023) == 2 & (values(lc_2050) == 1 | values(lc_2050) == 2)] <- 0 # if 2023 is other and 2050 is forest or other, no change
-# values(lc_change)[(values(lc_2023) == 3 | values(lc_2050) == 4)] <- 0 # if 2023 is urban or water, no change
-# values(lc_change)[values(lc_2023) == 1 & values(lc_2050) == 2] <- 2 # if 2023 is forest and 2050 is other, change to other
-# values(lc_change)[(values(lc_2023) == 2 & values(lc_2050) == 3) | (values(lc_2023) == 1 & values(lc_2050) == 3)] <- 1 # if 2023 is forest or other and 2050 is urban, change to urban
-
-
-
-# Initialize LCC_Probability with lc_2023 dimensions and values
-# LCC_Probability <- (lc_2023 * 0)
-
-# # Assigning penalized probabilities for non-urban, non-other pixels
-# penalty_factor <- 0.1
-# 
-# # For cells where the change is not urban - assign half probability
-# nonUrbanChangeIndices <- which(values(lc_change) != 1) # Get the indices of the cells where the change is not urban
-# values(LCC_Probability)[nonUrbanChangeIndices] <- values(UrbanProbability)[nonUrbanChangeIndices] * penalty_factor # Adjust these probabilities
-
-# # For cells where the change is not other - assign half probability
-# nonOtherChangeIndices <- which(values(lc_change) != 2) # Get the indices of the cells where the change is not urban
-# values(LCC_Probability)[nonOtherChangeIndices] <- values(OtherProbability)[nonOtherChangeIndices] * penalty_factor # Adjust these probabilities
-
-
-# ## Assigning probabilities by predicted land cover change class
-# ChangeIndices <- which(values(lc_2023) == 1) # Get the indices of the cells where the land is currently forest
-# values(LCC_Probability)[ChangeIndices] <- values(OtherProbability)[ChangeIndices] # Assign the probability of other to the corresponding cells
-# 
-# ChangeIndices <- which(values(lc_2023) == 2) # Get the indices of the cells where the land is currently other
-# values(LCC_Probability)[ChangeIndices] <- values(UrbanProbability)[ChangeIndices] # Assign the probability of urban to the corresponding cells
-
-
-
-# ## Assigning probabilities by predicted land cover change class
-# # For changes to urban, use the precise indexing approach
-# urbanChangeIndices <- which(values(lc_change) == 1) # Get the indices of the cells where the change is urban
-# values(LCC_Probability)[urbanChangeIndices] <- values(UrbanProbability)[urbanChangeIndices] # Assign the probability of urban change to the corresponding cells
-# 
-# # For changes to other, apply the same indexing approach
-# otherChangeIndices <- which(values(lc_change) == 2) # Get the indices of the cells where the change is other
-# values(LCC_Probability)[otherChangeIndices] <- values(OtherProbability)[otherChangeIndices] # Assign the probability of other change to the corresponding cells
-# unique(lc_change)
-
-
-# Calculating change_binary
-# change_binary <- LCC_Probability # Initialize change_binary with LCC_Probability
-# change_binary[getValues(LCC_Probability) > 0] <- 1 # if LCC_Probability > 0, assign 1
-# change_binary[getValues(LCC_Probability) <= 0] <- 0 # if LCC_Probability <= 0, assign 0
-
-# # Add LCC_Probability to the raster_list
-# raster_list$LCC_Probability <- LCC_Probability
-# 
-# # Optionally, if you want to keep the names consistent and in a specific order, you can rename all at once
-# names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "lc_2023", "lc_2050", "GDP", "LCC_Probability")
-
-```
-
-
+## Filter Land Cover Type Probability by Predicted Change
 ```{r}
 # pull lc_2023 out of raster list for easier access
 lc_2023 <- lc_rasters$lc_2023
@@ -373,6 +308,23 @@ names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "populat
 
 ```
 
+```{r, fig.width=10}
+# Create a new raster for UrbanExProbability based on the conditions
+UrbanExProbability <- raster(lc_2023)  # create a raster template from lc_2023
+
+# Set values: where lc_2023 is 3, UrbanExProbability should be 0
+# where lc_2023 is not 3, it should take the value from UrbanProbability
+values(UrbanExProbability) <- ifelse(values(lc_2023) == 3, 0, values(UrbanProbability))
+plot(UrbanExProbability, col=inferno(100))
+
+# Add LCC_Probability to the raster_list
+raster_list$UrbanExProbability <- UrbanExProbability
+
+# Optionally, if you want to keep the names consistent and in a specific order, you can rename all at once
+names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "GDP", "LCC_Probability", "UrbanExProbability")
+```
+
+
 ```{r, fig.width=8}
 plot(LCC_Probability, col=inferno(100))
 ```
@@ -383,7 +335,7 @@ normalized_layers <- lapply(raster_list, function(layer) {
   norm(layer)
 })
 raster_list <- normalized_layers
-names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "GDP", "LCC_Probability")
+names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "GDP", "LCC_Probability", "UrbanExProbability")
 ```
 
 ## Plot Input Rasters
@@ -421,6 +373,7 @@ Climate_Impact_Risk_v2 <- norm(Population_Vulnerability * Climate_Hazards) # nee
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # Weighted Overlay Calculation
 Hotspot_Stoplight <- norm(UrbanProbability - Bio_Loss_Risk - Climate_Impact_Risk)
+Hotspot_Stoplight_Expansion <- norm(UrbanExProbability - Bio_Loss_Risk - Climate_Impact_Risk)
 ```
 
 interpret climate risk index by excluding zero or very near zero values and then determining the percentiles from there
@@ -489,6 +442,7 @@ plotRasterWithFisherBreaks(raster_list$LCC_Probability, "Land Cover Change Proba
 # plotRasterWithFisherBreaks(raster_list$OtherProbability, "Land Cover Change Probability")
 plotRasterWithFisherBreaks(Bio_Loss_Risk, "Biodiversity Loss Risk Index  Biodiversity Intactness Index x Land Cover Change Probability")
 plotRasterWithFisherBreaks(UrbanProbability, "Urban Probability Index")
+plotRasterWithFisherBreaks(raster_list$UrbanExProbability, "Urban Expansion Probability Index")
 ```
 
 ## Hotspot Stoplight Raster
@@ -535,55 +489,57 @@ color_ramp <- colorRampPalette(c("#a80000", "orange", 'yellow', "#328232"))
 setwd(plot_dir)
 
 STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight, "Integrated Development Risk Index")
+STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight_Expansion, "Integrated Development Risk Index for Urban Expansion")
 
 ```
 ```{r}
-# Calculate the 75th percentile, which is the cutoff for the top 25% of the data
-q4_cutoff <- quantile(Bio_Loss_Risk, probs = 0.75, na.rm = TRUE)
+# Function to calculate cutoff rasters
+calculate_cutoff_rasters <- function(rasters, quantiles) {
+  results <- list() # Initialize an empty list to store results
+  
+  # Loop over each raster in the list
+  for (raster_name in names(rasters)) {
+    raster_data <- rasters[[raster_name]]
+    
+    # Loop over each quantile
+    for (quantile_value in quantiles) {
+      cutoff <- quantile(raster_data, probs = quantile_value, na.rm = TRUE)
+      
+      # Calculate the raster with cutoff
+      cutoff_raster <- calc(raster_data, function(x) {
+        x[x <= cutoff] <- NA
+        return(x)
+      })
+      
+      # Naming the raster in the format: rastername_quantile
+      result_name <- paste(raster_name, quantile_value * 100, sep = "_")
+      results[[result_name]] <- cutoff_raster
+    }
+  }
+  
+  return(results)
+}
 
-# Preserve only the Q4 values, set everything else to NA
-Bio_Loss_Risk_Q4 <- calc(Bio_Loss_Risk, function(x) {
-  x[x <= q4_cutoff] <- NA
-  return(x)
-})
+#calculate threshold versions for the following rasters
+raster_list_for_cutoffs <- list(
+  Bio_Loss_Risk = Bio_Loss_Risk,
+  Climate_Impact_Risk = Climate_Impact_Risk,
+  Hotspot_Stoplight = Hotspot_Stoplight
+)
+# set the thresholds to calculate for each
+quantile_list <- c(0.75, 0.90, 0.97)
 
-# Calculate the 75th percentile, which is the cutoff for the top 25% of the data
-q4_cutoff <- quantile(Climate_Impact_Risk, probs = 0.75, na.rm = TRUE)
+# Call the function
+cutoff_rasters <- calculate_cutoff_rasters(raster_list_for_cutoffs, quantile_list)
 
-# Preserve only the Q4 values, set everything else to NA
-Climate_Impact_Risk_Q4 <- calc(Climate_Impact_Risk, function(x) {
-  x[x <= q4_cutoff] <- NA
-  return(x)
-})
+# Access individual rasters like this:
+# cutoff_rasters[["Bio_Loss_Risk_75"]]
+# cutoff_rasters[["Hotspot_Stoplight_95"]]
 
-plot(Bio_Loss_Risk_Q4)
-plot(Climate_Impact_Risk_Q4)
-
+plot(cutoff_rasters[["Bio_Loss_Risk_75"]])
+plot(cutoff_rasters[["Climate_Impact_Risk_75"]])
+plot(cutoff_rasters[["Hotspot_Stoplight_97"]])
 ```
-```{r}
-# Calculate the 75th percentile, which is the cutoff for the top 25% of the data
-cutoff_90 <- quantile(Bio_Loss_Risk, probs = 0.90, na.rm = TRUE)
-
-# Preserve only the Q4 values, set everything else to NA
-Bio_Loss_Risk_90 <- calc(Bio_Loss_Risk, function(x) {
-  x[x <= cutoff_90] <- NA
-  return(x)
-})
-
-# Calculate the 75th percentile, which is the cutoff for the top 25% of the data
-cutoff_90 <- quantile(Climate_Impact_Risk, probs = 0.90, na.rm = TRUE)
-
-# Preserve only the Q4 values, set everything else to NA
-Climate_Impact_Risk_90 <- calc(Climate_Impact_Risk, function(x) {
-  x[x <= cutoff_90] <- NA
-  return(x)
-})
-
-plot(Bio_Loss_Risk_90)
-plot(Climate_Impact_Risk_90)
-
-```
-
 
 ## Data Distributions
 ```{r}
@@ -600,25 +556,8 @@ hist(UrbanProbabilityVals, main = "Histogram of Urban Probability Values", xlab 
 hist(HotspotStoplightVals, main = "Histogram of Hotspot Stoplight Values", xlab = "Suitability", ylab = "Frequency", col = "blue")
 
 ```
-```{r}
-# Create a new raster with zeros replaced by NA
-Bio_Loss_Risk_NullZeros <- Bio_Loss_Risk
-Bio_Loss_Risk_NullZeros[Bio_Loss_Risk_NullZeros == 0] <- NA
 
-Bio_Loss_Risk_NullZeros_Vals <- getValues(Bio_Loss_Risk_NullZeros)
-hist(Bio_Loss_Risk_NullZeros_Vals, main = "Histogram of Biodiversity Loss Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
-hist(Bio_Loss_RiskVals, main = "Histogram of Biodiversity Loss Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
-
-Climate_Impact_Risk_NullZeros <- Climate_Impact_Risk
-Climate_Impact_Risk_NullZeros[Climate_Impact_Risk_NullZeros == 0] <- NA
-
-Climate_Impact_Risk_NullZeros_Vals <- getValues(Climate_Impact_Risk_NullZeros)
-hist(Climate_Impact_Risk_NullZeros_Vals, main = "Histogram of Climate Impact Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
-hist(Climate_Impact_RiskVals, main = "Histogram of Climate Impact Risk Values", xlab = "Risk", ylab = "Frequency", col = "blue")
-
-
-```
-#Summarize Datasets within GAM Municipal Boundaries
+#Summarize Datasets within GAM Municipal Boundaries (WIP)
 ```{r}
 # # Check and Align CRS
 # # Check CRS of both layers
@@ -671,8 +610,6 @@ hist(Climate_Impact_RiskVals, main = "Histogram of Climate Impact Risk Values", 
 ```
 
 
-
-
 ## Export Datasets for Further Analysis and Visualization
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # HOTSPOT STOPLIGHT
@@ -689,6 +626,7 @@ writeRaster(Climate_Impact_Risk, "AnthroRiskNorm.tif", overwrite=TRUE)
 writeRaster(UrbanProbability, "UrbanProbability.tif", overwrite=TRUE)
 writeRaster(raster_list$LCC_Probability, "LCC_Probability.tif", overwrite=TRUE)
 
+
 # FORMATTED INPUT DATASETS
 writeRaster(raster_list$BII, "BII.tif", overwrite=TRUE)
 writeRaster(raster_list$population, "population.tif", overwrite=TRUE)
@@ -700,9 +638,18 @@ writeRaster(raster_list$Flood_Probability, "Flood_Hazards.tif", overwrite=TRUE)
 writeRaster(raster_list$Heat_Probability, "Heat_Hazards.tif", overwrite=TRUE)
 
 # THRESHOLD RASTERS
-writeRaster(Bio_Loss_Risk_90, "BioRisk90.tif", overwrite=TRUE)
-writeRaster(Climate_Impact_Risk_90, "AnthroRisk90.tif", overwrite=TRUE)
-writeRaster(Bio_Loss_Risk_Q4, "Bio_Loss_Risk_Q4.tif", overwrite=TRUE)
-writeRaster(Climate_Impact_Risk_Q4, "Climate_Impact_Risk_Q4.tif", overwrite=TRUE)
+# Function to export threshold rasters
+export_rasters <- function(rasters) {
+  for (raster_name in names(rasters)) {
+    # Define the file path
+    file_path <- file.path(paste(raster_name, "tif", sep = "."))
+    
+    # Export the raster as a TIFF file
+    writeRaster(rasters[[raster_name]], file_path, format = "GTiff", overwrite = TRUE)
+  }
+}
+
+# Export the rasters
+export_rasters(cutoff_rasters)
 
 ```
