@@ -55,7 +55,7 @@ library(classInt)
 library(sp)
 library(RColorBrewer)
 library(grDevices)
-
+library(stars)
 ```
 
 ## Setting Parameters
@@ -75,9 +75,9 @@ resolution <- (resolution/30)/3600
 # Base directory
 inputs <- '/Users/oliveratwood/Documents/GitHub/HotspotStoplight/LandCoverChange/data/outputs/cropped/crop5c_30m/'
 
-outputs <- "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/LandCoverChange/data/outputs/cropped/crop5c_30m/"
+outputs <- "/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5c_30m/tiffs"
 
-plot_dir <- '/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5c_30m/'
+plot_dir <- '/Users/oliveratwood/Documents/GitHub/HotspotStoplight/VisualProduction/OUTPUTS/Crop5c_30m/plots'
 
 # Load the raster datasets
 lc_2023 <- raster(paste0(inputs, 'lc_2023.tif'))
@@ -291,7 +291,7 @@ lc_2023 <- lc_rasters$lc_2023
 
 # Initialize LCC_Probability with lc_2023 dimensions and values
 LCC_Probability <- lc_2023
-values(LCC_Probability) <- 0  # Set all initial values to NA
+values(LCC_Probability) <- 0  # Set all initial values to 0
 
 # Assigning probabilities by predicted land cover change class
 # Forest to Other
@@ -310,17 +310,21 @@ names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "populat
 
 ```{r, fig.width=10}
 # Create a new raster for UrbanExProbability based on the conditions
-UrbanExProbability <- raster(lc_2023)  # create a raster template from lc_2023
+UrbanExProbability <- raster(UrbanProbability)
 
-# Set values: where lc_2023 is 3, UrbanExProbability should be 0
-# where lc_2023 is not 3, it should take the value from UrbanProbability
-values(UrbanExProbability) <- ifelse(values(lc_2023) == 3, 0, values(UrbanProbability))
+# Set UrbanExProbability to 0 where lc_2023 is 3
+UrbanExProbability[values(lc_2023) == 3] <- 0
+
+# Set UrbanExProbability to the UrbanProbability value where lc_2023 is not 3
+UrbanExProbability[values(lc_2023) != 3] <- values(UrbanProbability)[values(lc_2023) != 3]
+
+# Now plot UrbanExProbability
 plot(UrbanExProbability, col=inferno(100))
 
-# Add LCC_Probability to the raster_list
+# # Add LCC_Probability to the raster_list
 raster_list$UrbanExProbability <- UrbanExProbability
-
-# Optionally, if you want to keep the names consistent and in a specific order, you can rename all at once
+# 
+# # Optionally, if you want to keep the names consistent and in a specific order, you can rename all at once
 names(raster_list) <- c("BII", "Flood_Probability", "Heat_Probability", "population", "UrbanProbability", "OtherProbability", "GDP", "LCC_Probability", "UrbanExProbability")
 ```
 
@@ -372,8 +376,38 @@ Climate_Impact_Risk_v2 <- norm(Population_Vulnerability * Climate_Hazards) # nee
 ## Overlay Rasters to Produce 'Stoplight For Urban Development'
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # Weighted Overlay Calculation
-Hotspot_Stoplight <- norm(UrbanProbability - Bio_Loss_Risk - Climate_Impact_Risk)
-Hotspot_Stoplight_Expansion <- norm(UrbanExProbability - Bio_Loss_Risk - Climate_Impact_Risk)
+# Hotspot_Stoplight <- norm(UrbanProbability - Bio_Loss_Risk - Climate_Impact_Risk)
+Hotspot_Stoplight <- norm(UrbanProbability - Bio_Loss_Risk - Climate_Impact_Risk - raster_list$BII)
+# Hotspot_Stoplight_Expansion <- norm(raster_list$UrbanExProbability - Bio_Loss_Risk - Climate_Impact_Risk)
+```
+
+```{r}
+library(raster)
+
+# Assuming raster_list$UrbanExProbability, Bio_Loss_Risk, and Climate_Impact_Risk are RasterLayer objects
+
+# Perform the initial calculation
+temp_calculation <- raster_list$UrbanExProbability - Bio_Loss_Risk - Climate_Impact_Risk
+
+# Create a function that will be used to normalize the raster values
+norm_calculation <- function(x) {
+  min_val <- min(x, na.rm = TRUE)
+  max_val <- max(x, na.rm = TRUE)
+  (x - min_val) / (max_val - min_val)
+}
+
+# Apply the normalization function using calc
+temp_normalized <- calc(temp_calculation, norm_calculation)
+
+# Now, create a new raster where the UrbanExProbability is zero
+# First, make a copy of UrbanExProbability
+Hotspot_Stoplight_Expansion <- raster_list$UrbanExProbability
+
+# Set values to 0 where UrbanExProbability is 0, else use normalized values
+values(Hotspot_Stoplight_Expansion) <- ifelse(values(raster_list$UrbanExProbability) == 0, 
+                                               0, 
+                                               values(temp_normalized))
+
 ```
 
 interpret climate risk index by excluding zero or very near zero values and then determining the percentiles from there
@@ -459,7 +493,7 @@ color_ramp <- colorRampPalette(c("#a80000", "orange", 'yellow', "#328232"))
   # Check if min_val and max_val are finite
   if (is.finite(min_val) && is.finite(max_val)) {
     # Determine the number of breaks
-    num_breaks <- 9  # Adjust the number of breaks as needed
+    num_breaks <- 255  # Adjust the number of breaks as needed
     
     # Calculate Fisher breaks
     values <- getValues(raster_data)
@@ -489,7 +523,7 @@ color_ramp <- colorRampPalette(c("#a80000", "orange", 'yellow', "#328232"))
 setwd(plot_dir)
 
 STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight, "Integrated Development Risk Index")
-STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight_Expansion, "Integrated Development Risk Index for Urban Expansion")
+STOPLIGHTplotRasterWithFisherBreaks(Hotspot_Stoplight_Expansion, "Integrated Development Risk Index - Urban Expansion")
 
 ```
 ```{r}
@@ -524,10 +558,11 @@ calculate_cutoff_rasters <- function(rasters, quantiles) {
 raster_list_for_cutoffs <- list(
   Bio_Loss_Risk = Bio_Loss_Risk,
   Climate_Impact_Risk = Climate_Impact_Risk,
-  Hotspot_Stoplight = Hotspot_Stoplight
+  Hotspot_Stoplight = Hotspot_Stoplight,
+  Hotspot_Stoplight_Expansion = Hotspot_Stoplight_Expansion
 )
 # set the thresholds to calculate for each
-quantile_list <- c(0.75, 0.90, 0.97)
+quantile_list <- c(0.75, 0.90, 0.97, 0.95)
 
 # Call the function
 cutoff_rasters <- calculate_cutoff_rasters(raster_list_for_cutoffs, quantile_list)
@@ -539,7 +574,9 @@ cutoff_rasters <- calculate_cutoff_rasters(raster_list_for_cutoffs, quantile_lis
 plot(cutoff_rasters[["Bio_Loss_Risk_75"]])
 plot(cutoff_rasters[["Climate_Impact_Risk_75"]])
 plot(cutoff_rasters[["Hotspot_Stoplight_97"]])
+plot(cutoff_rasters[["Hotspot_Stoplight_95"]])
 ```
+
 
 ## Data Distributions
 ```{r}
@@ -611,6 +648,8 @@ hist(HotspotStoplightVals, main = "Histogram of Hotspot Stoplight Values", xlab 
 
 
 ## Export Datasets for Further Analysis and Visualization
+
+### GeoTIFFs
 ```{r, message=FALSE, warning=FALSE, cache=TRUE, echo=FALSE}
 # HOTSPOT STOPLIGHT
 # Export the raster as a TIFF
@@ -618,6 +657,7 @@ setwd(outputs)
 
 # Save the final raster
 writeRaster(Hotspot_Stoplight, "Hotspot_Stoplight_2024.tif", overwrite=TRUE)
+writeRaster(Hotspot_Stoplight_Expansion, "Hotspot_Stoplight_Expansion_2024.tif", overwrite=TRUE)
 
 # INTERMEDIATE INDICES
 # Save the final rasters
@@ -625,6 +665,7 @@ writeRaster(Bio_Loss_Risk, "BioRiskNorm.tif", overwrite=TRUE)
 writeRaster(Climate_Impact_Risk, "AnthroRiskNorm.tif", overwrite=TRUE)
 writeRaster(UrbanProbability, "UrbanProbability.tif", overwrite=TRUE)
 writeRaster(raster_list$LCC_Probability, "LCC_Probability.tif", overwrite=TRUE)
+writeRaster(raster_list$UrbanExProbability, "UrbanExProbability.tif", overwrite=TRUE)
 
 
 # FORMATTED INPUT DATASETS
@@ -653,3 +694,68 @@ export_rasters <- function(rasters) {
 export_rasters(cutoff_rasters)
 
 ```
+
+### Cloud-Optimized GeoTIFFs
+```{r}
+# # Specify the subdirectory for Cloud Optimized GeoTIFFs
+# cog_dir <- "COG"
+# 
+# # Combine the paths
+# full_cog_path <- file.path(outputs, cog_dir)
+# 
+# # Check if the directory exists, if not create it
+# if (!dir.exists(full_cog_path)) {
+#   dir.create(full_cog_path, recursive = TRUE)
+# }
+# 
+# # Set the working directory to the COG directory
+# setwd(full_cog_path)
+# 
+# # Function to write a raster as a cloud-optimized GeoTIFF and create overviews
+# write_cog <- function(raster_data, file_name) {
+#   cog_path <- file.path(getwd(), file_name)
+#   
+#   # Ensure the raster data is a stars object
+#   if (!inherits(raster_data, "stars")) {
+#     raster_data <- st_as_stars(raster_data)
+#   }
+#   
+#   # Write the initial GeoTIFF
+#   write_stars(raster_data, cog_path, driver = "GTiff", options = c("TILED=YES", "COMPRESS=LZW", "PREDICTOR=2", "BIGTIFF=IF_SAFER"))
+# 
+#   # Add overviews using a system call to GDAL
+#   # This assumes that 'gdaladdo' is accessible from the command line
+#   command <- sprintf("gdaladdo -r average %s 2 4 8 16", shQuote(cog_path))
+#   system(command)
+# }
+# 
+# # Ensure that 'Hotspot_Stoplight' is either a stars object or a raster object that can be converted
+# write_cog(Hotspot_Stoplight, "Hotspot_Stoplight_2024.tif")
+# write_cog(Hotspot_Stoplight_Expansion, "Hotspot_Stoplight_Expansion_2024.tif")
+# 
+# # Export other datasets as COG
+# write_cog(Bio_Loss_Risk, "BioRiskNorm.tif")
+# write_cog(Climate_Impact_Risk, "AnthroRiskNorm.tif")
+# write_cog(UrbanProbability, "UrbanProbability.tif")
+# write_cog(raster_list$LCC_Probability, "LCC_Probability.tif")
+# 
+# # Export more datasets as needed using the same function...
+# 
+# # Function to export a list of raster datasets as COGs
+# export_cog_rasters <- function(rasters) {
+#   for (raster_name in names(rasters)) {
+#     # Ensure each raster is in an appropriate format for conversion to stars object
+#     raster_data <- rasters[[raster_name]]
+#     cog_filename <- paste0(raster_name, ".tif")
+#     
+#     # Export the raster as a COG file
+#     write_cog(raster_data, cog_filename)
+#   }
+# }
+# 
+# # Export threshold rasters as COG
+# export_cog_rasters(cutoff_rasters)
+
+
+```
+
